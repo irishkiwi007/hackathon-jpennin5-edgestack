@@ -34,7 +34,7 @@ Work through the steps IN ORDER, checking boxes here (edit this file) as they co
   supervised by the same mechanism as step 2.
 - Verify: agent session pass logs "via MCP" for the routed calls against the paper API.
 
-### [ ] STEP 2 — Hosting ON THIS MACHINE (user: "use this container to host")
+### [x] STEP 2 — Hosting ON THIS MACHINE (user: "use this container to host")
 - Needs: agent runs unattended across sessions + a "live application URL" for submission.
 - Build `agent/dashboard.py`: stdlib HTTP server (pick port, e.g. 8787) serving:
   equity curve / journal (journal/DECISIONS.md + decisions.jsonl), current gate + regime
@@ -50,7 +50,7 @@ Work through the steps IN ORDER, checking boxes here (edit this file) as they co
   (Rust, crates/live, bin/live.rs) — reference if the Python path hits a wall; the Python
   agent is self-contained so this is fallback only.
 
-### [ ] STEP 3 — First commit + public repo
+### [x] STEP 3 — First commit + public repo
 - `git init` done; 37+ files untracked; `.env` confirmed ignored (verify again before
   commit: `git check-ignore .env`).
 - Write a submission-facing README.md (rewrite the current MCP-server-only README):
@@ -117,3 +117,12 @@ Work through the steps IN ORDER, checking boxes here (edit this file) as they co
   numeric args must be STRINGS. Server launch cmd (must be supervised in step 2):
   `set -a; source .env; set +a; export ALPACA_TOOLSETS=account,trading,assets,options-data,stock-data;
    uvx --python 3.11 alpaca-mcp-server==2.3.0 --transport streamable-http --host 127.0.0.1 --port 8000`
+- STEP 2 DONE: dashboard (agent/dashboard.py :8787, EdgeStack-branded, MCP-status card);
+  supervisor host/run.py (ensure-running, 4 modes); logon persistence via Startup folder
+  EdgeStack.vbs (schtasks was access-denied); cloudflared.exe in host/bin (gitignored);
+  PUBLIC URL live: https://dropped-psychology-fortune-employed.trycloudflare.com
+  (QUICK tunnel — URL CHANGES on restart; re-read journal/live_url.txt before submitting,
+  or make a named tunnel with a free CF account for a stable URL).
+- STEP 3 DONE: submission README written (EdgeStack branding, evidence tables, architecture,
+  compliance map); first commit cea4f03, 179 files, .env excluded. PUSH PENDING: needs the
+  user's GitHub remote (`git remote add origin <url> && git push -u origin master`).

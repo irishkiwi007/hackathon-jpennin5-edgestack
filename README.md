@@ -1,10 +1,23 @@
-# EdgeStack — an evidence-gated trading agent
+# EdgeStack
 
-**The LLM proposes. A deterministic rule engine disposes. Every number in the strategy is a
-measurement, and every refusal to trade is journaled with its reason.**
+**Every rule in this agent survived an attempt to kill it.**
 
-Built for the lablab.ai × Alpaca **AI Trading Agents Hackathon** on Alpaca's MCP Server v2,
-paper account `PA3ZCDDOPR2N`.
+Thirty-three years of data. Surrogate nulls. Two disjoint validation windows where every
+parameter tuning *failed* and was rejected. Three independent backtest engines that had to
+agree. A documented graveyard of ideas that didn't make it — Elliott waves, Fibonacci
+levels, five macro overlays, and our own first options design. What remains is small,
+gated, and explains every refusal.
+
+**Live dashboard:** see `journal/live_url.txt` (quick tunnel) · **Paper account:**
+`PA3ZCDDOPR2N` · Built for the [lablab.ai × Alpaca AI Trading Agents Hackathon](https://lablab.ai/ai-hackathons/alpaca-ai-trading-agents-hackathon)
+on **Alpaca's MCP Server v2**.
+
+Like every serious entry in this event, the LLM here cannot touch capital — deterministic
+gates stand between proposal and order. The difference is where the *rules themselves* come
+from: **every gate constant in this repo is a measurement with a t-statistic attached**, not
+a judgment call. The unifying finding behind all of them: markets revert *emotional* moves
+and honor *informational* ones — measured three independent ways (a volume ceiling, a
+bond-volatility regime, a credit canary).
 
 ---
 
@@ -93,6 +106,16 @@ bearing: they are why the surviving rules can be trusted.
 - Option-level expectancy could not be established from free historical data (no quote
   history exists on this tier); the options component is therefore sized as a satellite,
   priced from live quotes only.
+
+## Judging-criteria map
+
+| criterion | where it lives |
+| --- | --- |
+| **P&L Performance** | paper account `PA3ZCDDOPR2N` (judges pull it); equity + open positions on the live dashboard |
+| **Technology Implementation** | MCP-routed brokerage (`agent/mcp_gateway.py`), engine that reproduces its research record to 3 decimals (`agent/test_signal_engine.py`), 22-case gate suite, ensure-running supervisors (`host/run.py`) |
+| **Creativity & Originality** | the research program itself: [EDGE-PORTFOLIO.md](EDGE-PORTFOLIO.md), [ENGINE-TRIAL.md](ENGINE-TRIAL.md) — including a rule mined from the trader's own prior strategies and validated before adoption |
+| **Presentation & Execution** | this README, the live dashboard, the decision journal, [docs/WRITEUP.md](docs/WRITEUP.md) |
+| **Social engagement** | build-in-public thread (see write-up) |
 
 ## Hackathon compliance
 

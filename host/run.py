@@ -64,8 +64,8 @@ MODES = {
         "port": 8787,
     },
     "tunnel": {
-        "cmd": ["cloudflared", "tunnel", "--url", "http://127.0.0.1:8787",
-                "--no-autoupdate"],
+        "cmd": [os.path.join(HERE, "bin", "cloudflared.exe"), "tunnel",
+                "--url", "http://127.0.0.1:8787", "--no-autoupdate"],
         "port": None,
     },
 }

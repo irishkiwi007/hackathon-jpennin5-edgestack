@@ -180,8 +180,8 @@ def render(d: dict) -> str:
 <meta http-equiv="refresh" content="90"><title>EdgeStack</title>
 <style>{CSS}</style></head><body>
 <h1>Edge<span>Stack</span> <span style="font-size:13px" class="{alive_cls}">&#9679; {alive_txt}</span></h1>
-<p class="tag">Evidence-gated trading agent &middot; the LLM proposes, a deterministic rule
-engine disposes &middot; Alpaca paper account <span class="mono">{esc(a['number'])}</span></p>
+<p class="tag">Every rule survived an attempt to kill it &middot; 33 years of evidence, three
+backtest engines, one graveyard &middot; Alpaca paper account <span class="mono">{esc(a['number'])}</span></p>
 
 <div class="grid">
 <div class="card"><div class="k">Equity</div><div class="v">${eq:,.0f}</div>
