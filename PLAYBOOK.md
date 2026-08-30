@@ -144,7 +144,9 @@ Work through the steps IN ORDER, checking boxes here (edit this file) as they co
    (host/run.py processes pick up new env on restart).
 3. [VIDEO PRODUCED by agent] docs/demo.mp4 (3:44, 1080p, 10 segments, synthetic narration,
    real dashboard/GitHub captures; rebuild with `python video/build.py`). OPTIONAL: re-record
-   human voice over the same cut. Still yours: export slides from docs/SLIDES.md;
+   human voice over the same cut. [SLIDES PRODUCED by agent] docs/slides.pdf (10 slides, 16:9, evidence charts) +
+   docs/cover.png (1920x1080 for the lablab cover-image field); rebuild with
+   `python video/build_slides.py`. Still yours:
    make a cover image (spec: dark bg #0b0f14, "EdgeStack" + tagline "every rule survived
    an attempt to kill it", dashboard screenshot as backdrop).
 4. Post the docs/SOCIAL.md thread (Social Engagement is judged) with the live URL + repo.
