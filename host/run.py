@@ -3,12 +3,14 @@
     python host/run.py mcp        # Alpaca MCP server  (port 8000, via uvx, pinned 2.3.0)
     python host/run.py scheduler  # session scheduler  (agent entries/exits)
     python host/run.py dashboard  # live dashboard     (port 8787)
-    python host/run.py tunnel     # cloudflared quick tunnel -> public URL
+    python host/run.py tunnel     # cloudflared quick tunnel -> public URL (self-healing)
 
 Each mode: loads .env, then keeps its process alive forever — restart on exit, with
 backoff. Port-owning modes first CHECK the port and idle if something already serves it
-(ensure-running semantics: a second supervisor instance never double-binds). Registered
-with Windows Task Scheduler at logon by host/install_tasks.py; logs to journal/.
+(ensure-running semantics). The tunnel mode additionally WATCHES its public URL: quick
+tunnels can die at the edge while cloudflared retry-loops forever (observed 2026-08-30),
+so three failed probes recycle the process for a fresh URL, and journal/live_url.txt is
+always kept pointing at the current one. Logs to journal/<mode>.supervisor.log.
 """
 from __future__ import annotations
 
@@ -71,6 +73,55 @@ MODES = {
 }
 
 
+def _watch_tunnel(proc, log_path, log, start_offset=0):
+    """One cloudflared lifecycle: publish its URL, probe it every 60s, recycle on death."""
+    import urllib.request
+    url = None
+    fails = 0
+    url_deadline = time.time() + 120
+    pattern = re.compile(r"https://[a-z0-9-]+\.trycloudflare\.com")
+    while True:
+        if proc.poll() is not None:
+            return proc.returncode
+        if url is None:
+            try:
+                with open(log_path, encoding="utf-8", errors="replace") as fh:
+                    fh.seek(start_offset)          # only THIS run's output; old runs
+                    text = fh.read()               # contain dead URLs
+                found = pattern.findall(text)
+                if found:
+                    url = found[-1]
+                    with open(os.path.join(JOURNAL, "live_url.txt"), "w",
+                              encoding="utf-8") as fh:
+                        fh.write(url + "\n")
+                    log("tunnel URL published: " + url)
+                elif time.time() > url_deadline:
+                    log("no URL within 120s; recycling cloudflared")
+                    proc.kill()
+                    return -1
+            except OSError:
+                pass
+            time.sleep(5)
+            continue
+        time.sleep(60)
+        ok = False
+        try:
+            req = urllib.request.Request(url, method="HEAD")
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                ok = resp.status < 500
+        except Exception:                              # noqa: BLE001
+            ok = False
+        if ok:
+            fails = 0
+        else:
+            fails += 1
+            log(f"tunnel probe failed ({fails}/3): {url}")
+            if fails >= 3:
+                log("tunnel URL dead; recycling cloudflared for a fresh one")
+                proc.kill()
+                return -2
+
+
 def main() -> int:
     if len(sys.argv) < 2 or sys.argv[1] not in MODES:
         print(f"usage: run.py [{'|'.join(MODES)}]")
@@ -96,10 +147,14 @@ def main() -> int:
             continue
         log(f"starting: {' '.join(spec['cmd'])}")
         try:
+            offset = os.path.getsize(log_path) if os.path.exists(log_path) else 0
             with open(log_path, "a", encoding="utf-8") as out:
                 proc = subprocess.Popen(spec["cmd"], cwd=ROOT, env=env,
                                         stdout=out, stderr=out)
-                rc = proc.wait()
+                if mode == "tunnel":
+                    rc = _watch_tunnel(proc, log_path, log, offset)
+                else:
+                    rc = proc.wait()
             log(f"exited rc={rc}; restarting in {backoff}s")
         except FileNotFoundError as exc:
             log(f"command missing: {exc}; retry in 300s")
