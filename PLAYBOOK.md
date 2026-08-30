@@ -163,30 +163,32 @@ Work through the steps IN ORDER, checking boxes here (edit this file) as they co
 
 
 ================================================================================
-# COMPACTION CHECKPOINT — 2026-08-30 (written immediately before a compaction)
+# COMPACTION CHECKPOINT — 2026-08-30 (updated after the QC evaluation)
 ================================================================================
 
-## IMMEDIATE NEXT TASK (user is about to paste this)
-The user is uploading **QuantConnect backtest results** for qc_research/edge_stack.py
-(the equity stack: overnight SPY core gated by 12m trend + credit canary, capitulation
-sleeve 0.5x across 7 ETFs; USE_CREDIT_CANARY=True default). Evaluate them against:
+## QC TRIAL — EVALUATED, WRITTEN UP, DONE (2026-08-30)
+The user's QuantConnect run of qc_research/edge_stack.py ("Pensive Tan Kitten.json" in
+Downloads, default config, canary ON, 2010-01-04..2026-06-01, minute res, real IB fees)
+completed clean: 7,589 orders, no errors, sleeve fired on all 7 ETFs. Verdict vs the
+pre-registered table — full write-up appended to qc_research/README.md:
 
-| check | expectation | if it fails |
-|---|---|---|
-| ranking | buy&hold < core-only < core+sleeve on Sharpe | sleeve below core = pre-registered red flag in README — investigate, do not excuse |
-| level | Sharpe ~0.6-0.9 (research 0.85 at 1bp; QC fills/slippage drag it) | far off either way = investigate |
-| max DD | ~-20 to -30% vs -59% buy&hold | deep DD = gate not engaging |
-| orders | ~2 core orders/session; 2010-2026 => ~8k+ orders, may brush QC free-tier caps | if it died/hung: shorten to 2018-2026, not a strategy fault |
-| credit canary | comparable/better vs trend-only ON THE OVERNIGHT CORE (first-ever test of that combo) | if it hurts overnight specifically = genuine finding, record it |
+- Research-convention Sharpe ((CAGR-2%)/vol from the equity curve): **0.56** (QC's printed
+  0.35 is its own rf model). Nominal 0.6-0.9 band missed, but the band was calibrated to
+  the 33y record; the research engine itself restricted to the QC window gives **0.47**
+  (buy&hold 0.70, core-only 0.32 — from scripts/equity_wide.py, windowed). QC BEAT its
+  period-matched twin on every line under ~4x costs. Window effect, pre-registered in the
+  era table ("wins in bears, lags in bulls"; 2010-26 has one bear).
+- maxDD -24.2% (band -20..-30 ✓). Yearly corr QC-vs-research +0.87, mean gap 3.6pp/yr.
+- Canary fingerprint visible (better 2015/2020/2022, worse 2010 chop); no sign it hurts
+  the overnight core. Red flag (sleeve<core) did NOT trigger. Capacity est. $130M.
+- Optional follow-ups (NOT required): QC reruns with SLEEVE_WEIGHT=0 and
+  USE_CREDIT_CANARY=False for in-engine attribution.
 
-QC is the ONLY independent test of the overnight core (TrustyRustyEngine can't express
-close->open; fills at next open only). If numbers hold: add a third-engine confirmation
-line to README + slide 6 (rebuild via `python video/build_slides.py`), commit, push.
-Research reference: core+sleeve CAGR 9.72%, vol 9.07%, Sharpe 0.85, DD -26.6% (1994-2026,
-1bp costs); core-only 0.76; buy&hold 0.32. Known QC deltas: 15:45 signals w/ 0.894 volume
-completion + floor 1.5 (vs research exact-close 1.4) -> slightly fewer sleeve events.
+Repo updates made: qc_research/README.md results section; README research list line
+("third-engine replay... 0.56 vs 0.47"); slide 6 closing line + slides.pdf/cover.png
+rebuilt (video/build_slides.py). Committed and pushed.
 
-## STATE: SUBMISSION-READY (all agent-side work COMPLETE and pushed, HEAD a0a0246+)
+## STATE: SUBMISSION-READY (all agent-side work COMPLETE incl. QC verdict, pushed)
 - Public repo: https://github.com/jpennin5/edgestack (pinned on the user's profile)
 - Stable live URL: https://jpennin5.github.io/edgestack/ (gh-pages redirect; tunnel
   watcher auto-republishes on every quick-tunnel rotation via GitHub Contents API;

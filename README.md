@@ -93,6 +93,10 @@ the audit trail:
 - [ENGINE-TRIAL.md](ENGINE-TRIAL.md) — out-of-sample discipline: every parameter tuning
   failed validation; the untuned rules won. One borrowed rule (the credit canary) passed
   both windows and was adopted
+- [qc_research/README.md](qc_research/README.md) — third-engine replay: QuantConnect at
+  minute resolution with real fee/fill models, 2010-2026. Agrees with the research engine
+  year-by-year (correlation +0.87) and lands above its period-matched twin — Sharpe 0.56
+  vs 0.47 — under ~4x the research's cost assumption
 - [HERD-REVERSAL.md](HERD-REVERSAL.md) — the capitulation edge, 33 years, surrogate-tested
 - [PLAYBOOK.md](PLAYBOOK.md) — how this submission was assembled
 

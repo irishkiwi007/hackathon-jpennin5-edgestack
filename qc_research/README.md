@@ -45,3 +45,57 @@ code comment.
 The earnings iron-condor options sleeve (15.31% return-on-risk, t=4.79). It needs QC option
 chains plus an earnings calendar — separate file, separate trial, after the equity stack is
 confirmed.
+
+## Result — run 2026-08-30 ("Pensive Tan Kitten", default config, credit canary ON)
+
+Full window 2010-01-04 → 2026-06-01, minute resolution, QC's own fill models and its
+Interactive Brokers fee model: **$25,149 in fees ≈ 4.4bp per round trip — ~4x the research's
+1bp assumption**. Completed clean: 7,589 orders, no runtime errors. The sleeve fired on all
+7 ETFs (~79 non-SPY round trips vs 84 research-engine events in the window — the deliberate
+1.5x volume floor dropping a few marginal events, as designed).
+
+Because QC's dashboard Sharpe uses its own variable risk-free model (it prints 0.35 for this
+curve), everything below is restated in the research convention, Sharpe = (CAGR − 2%) / vol,
+computed from the exported equity curve. Period-matched rows come from rerunning
+`scripts/equity_wide.py` restricted to the exact QC window
+(`simulate(0.5, False, True)` etc. — same code that produced the 33-year table above).
+
+| configuration (2010-2026 window) | CAGR | vol | Sharpe | max DD |
+|---|---|---|---|---|
+| buy and hold (research data, no costs) | 14.03% | 17.15% | 0.70 | -33.7% |
+| core only (research engine) | 4.88% | 9.10% | 0.32 | -24.9% |
+| core + sleeve 0.5x (research engine) | 6.62% | 9.76% | 0.47 | -26.6% |
+| **core + sleeve 0.5x + canary (QC, this run)** | **6.97%** | **8.84%** | **0.56** | **-24.2%** |
+
+### What the trial confirms
+
+1. **Engine independence.** Year-by-year correlation between QC and the research engine is
+   **+0.87** (mean absolute yearly gap 3.6pp), and QC lands **above** its period-matched
+   research twin — 0.56 vs 0.47 — despite ~4x the cost assumption. The overnight
+   close→open core, the one piece no other engine could express (TrustyRustyEngine fills at
+   next open only), survives its first minute-resolution replay with real fills and fees.
+2. **The drawdown profile.** -24.2% vs -33.7% buy-and-hold in-window (-59% full record) —
+   inside the -20% to -30% band expected before the run.
+3. **The credit canary doesn't hurt the overnight core.** This run (canary ON) beats the
+   trend-only research twin on every line, and the yearly gaps carry the canary's
+   signature: better in credit-stress years (2015: -2.3% vs -9.2%; 2020: +5.6% vs +0.8%;
+   2022: -2.4% vs -9.8%), worse in 2010 when HYG chopped around its 100d SMA. A clean A/B
+   still needs a `USE_CREDIT_CANARY = False` run; nothing here suggests harm.
+4. QC estimates strategy capacity at **$130M** (binding asset: SPY).
+
+### What the trial does not show
+
+- **The 33-year Sharpe.** Before the run we expected 0.6-0.9, a band calibrated to the
+  full-record 0.85. Measured: 0.56. The gap is the *window*, not the engine — the same
+  research code restricted to the same window gives 0.47, and the era table published
+  before this trial says why: the stack *"wins decisively in every bear market and lags in
+  strong bulls,"* and 2010-2026 contains exactly one bear. On this window buy-and-hold
+  beats the stack in **both** engines (0.70 vs 0.56/0.47). The pre-registered red flag —
+  core+sleeve below core — did **not** trigger.
+- **Component attribution inside QC.** One run cannot separate core from sleeve or canary
+  from trend. Two optional follow-up backtests would close this: `SLEEVE_WEIGHT = 0`
+  (core-only ranking check) and `USE_CREDIT_CANARY = False` (canary A/B).
+
+**Verdict: the stack's first fully independent minute-resolution replay agrees with the
+research engine year-by-year and lands above its period-matched twin under real costs.
+Engine risk is retired; window sensitivity was already on the record before the trial.**

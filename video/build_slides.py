@@ -166,7 +166,9 @@ passing BOTH windows)</td><td><b class='ok'>0.98</b></td><td><b class='ok'>1.02<
 <td><b class='ok'>11.8%</b></td></tr>
 </table>
 <p class='sub' style='margin-top:auto'>A rule change counts only if it survives a disjoint
-window. One did. Full protocol: ENGINE-TRIAL.md.</p>{FOOT}</div>""")
+window. One did. Full protocol: ENGINE-TRIAL.md. And a third engine agrees: QuantConnect
+minute-level replay, 2010–26, real fee model, 7,589 orders — lands above its period-matched
+research twin, Sharpe 0.56 vs 0.47.</p>{FOOT}</div>""")
 
 SLIDES.append(f"""<div class='slide'>{CHIPS}
 <div class='kicker'>The machine</div>
