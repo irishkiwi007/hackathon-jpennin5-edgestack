@@ -1,10 +1,10 @@
 """Build docs/cover.png — the lablab submission hero (1920x1080).
 
-"Evidence is the doorway to opportunity": chaotic, unsettling market noise at the
-edges of the frame; a monumental doorway built from four nested gate-frames (the
-agent's real gates - trend, credit, volume, calm) cutting through the chaos; and
-through the opening, a warm promised-land valley. Pure SVG/CSS, rendered by
-headless Edge.
+"Evidence is the doorway to opportunity", cinematic pass: storm-wrapped chaos at the
+edges, a monumental four-gate portal with real tunnel depth (door-light raking across
+the receding rings), a glossy reflecting floor, volumetric light with drifting motes,
+a lush atmospheric valley through the opening, and a lone figure at the threshold for
+scale. Pure SVG/CSS, rendered by headless Edge.
 
     python video/build_cover.py
 """
@@ -19,7 +19,24 @@ EDGE = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 
 random.seed(11)
 
-# ---- chaos: jittery price-path scribbles + drifting shards, masked to the edges ----------
+CX, BASE = 960, 840
+INSETS = [0, 62, 124, 186, 248]          # frame boundaries; last = opening
+TOPS = [160, 206, 252, 298, 344]
+X0S = [600 + i for i in INSETS]
+X1S = [1320 - i for i in INSETS]
+GATE_NAMES = ["TREND GATE", "CREDIT CANARY", "VOLUME CEILING", "CALM REGIME"]
+GATE_INK = ["#7d9cc9", "#96abb9", "#c0ab74", "#ecc27e"]
+
+def arch(x0, x1, ytop, ybase, rev=False):
+    r = (x1 - x0) / 2
+    ry = r * 0.72
+    if not rev:
+        return (f"M {x0},{ybase} L {x0},{ytop + r:.0f} "
+                f"A {r:.0f},{ry:.0f} 0 0 1 {x1},{ytop + r:.0f} L {x1},{ybase} Z")
+    return (f"M {x1},{ybase} L {x1},{ytop + r:.0f} "
+            f"A {r:.0f},{ry:.0f} 0 0 0 {x0},{ytop + r:.0f} L {x0},{ybase} Z")
+
+# ---- chaos: price-path scribbles, shards, glowing bolts (edge-masked) --------------------
 scribbles = []
 for _ in range(96):
     edge = random.choice(["l", "r", "t", "b"])
@@ -37,10 +54,9 @@ for _ in range(96):
         y += random.uniform(-26, 26) * (3.2 if random.random() < 0.08 else 1)
         pts.append(f"{x:.0f},{y:.0f}")
     col = random.choice(["#7a2e4a", "#8f2f3f", "#40518a", "#5b3a72", "#3a4a74", "#6d2237"])
-    o = random.uniform(0.18, 0.50)
-    wdt = random.uniform(1.2, 3.2)
     scribbles.append(f"<polyline points='{' '.join(pts)}' fill='none' stroke='{col}' "
-                     f"stroke-width='{wdt:.1f}' opacity='{o:.2f}'/>")
+                     f"stroke-width='{random.uniform(1.2,3.2):.1f}' "
+                     f"opacity='{random.uniform(.18,.50):.2f}'/>")
 shards = []
 for _ in range(26):
     edge = random.choice(["l", "r", "t", "b"])
@@ -53,10 +69,9 @@ for _ in range(26):
     else:
         x, y = random.uniform(0, 1920), random.uniform(860, 1080)
     s = random.uniform(6, 22)
-    rot = random.uniform(0, 360)
-    col = random.choice(["#5f2a3d", "#31405f", "#3f2b52"])
     shards.append(f"<rect x='{x:.0f}' y='{y:.0f}' width='{s:.0f}' height='{s*0.55:.0f}' "
-                  f"transform='rotate({rot:.0f} {x:.0f} {y:.0f})' fill='{col}' "
+                  f"transform='rotate({random.uniform(0,360):.0f} {x:.0f} {y:.0f})' "
+                  f"fill='{random.choice(['#5f2a3d', '#31405f', '#3f2b52'])}' "
                   f"opacity='{random.uniform(.12,.30):.2f}'/>")
 bolts = []
 for bx, by, ang in ((150, 90, 40), (1770, 130, 140), (110, 940, -35),
@@ -68,8 +83,11 @@ for bx, by, ang in ((150, 90, 40), (1770, 130, 140), (110, 940, -35),
         y += math.sin(a) * random.uniform(28, 64) + random.uniform(-22, 22)
         pts.append(f"{x:.0f},{y:.0f}")
     col = random.choice(["#d14b66", "#8f9ae8", "#c46a8a"])
-    bolts.append(f"<polyline points='{' '.join(pts)}' fill='none' stroke='{col}' "
-                 f"stroke-width='2' opacity='{random.uniform(.28,.44):.2f}'/>")
+    p = " ".join(pts)
+    bolts.append(f"<polyline points='{p}' fill='none' stroke='{col}' stroke-width='9' "
+                 f"opacity='.16' filter='url(#blur6)'/>"
+                 f"<polyline points='{p}' fill='none' stroke='{col}' stroke-width='2' "
+                 f"opacity='{random.uniform(.30,.46):.2f}'/>")
 CHAOS_LINES = "".join(scribbles) + "".join(shards) + "".join(bolts)
 
 STORM = "".join(
@@ -81,66 +99,96 @@ STORM = "".join(
         (1450, 1120, 560, 220, "#170f2b", .75), (60, 540, 340, 320, "#2b1024", .7),
         (1870, 540, 350, 330, "#131636", .7)))
 
-# ---- the doorway: four nested gate-frames, cold blue outside -> warm gold inside ---------
-FRAMES = [  # x-inset from 640/1280, top y, edge color, engraving
-    (0,   170, "#4f7fc9", "TREND GATE"),
-    (54,  212, "#5f93d8", "CREDIT CANARY"),
-    (108, 254, "#8fae9d", "VOLUME CEILING"),
-    (162, 296, "#d8b26a", "CALM REGIME"),
-]
-OPEN_X0, OPEN_X1 = 640 + 216, 1280 - 216          # 856 .. 1064
-OPEN_TOP, BASE = 338, 838
+# storm crescents hugging the portal so the chaos wraps it
+HUG = (f"<path d='M 540,{BASE} A 420,340 0 0 1 1380,{BASE}' fill='none' stroke='#12081f' "
+       f"stroke-width='74' opacity='.55' filter='url(#blur24)'/>"
+       f"<path d='M 500,{BASE} A 460,380 0 0 1 1420,{BASE}' fill='none' stroke='#240f22' "
+       f"stroke-width='60' opacity='.45' filter='url(#blur24)'/>")
 
-def arch(x0, x1, ytop, ybase):
-    r = (x1 - x0) / 2
-    ry = r * 0.72
-    return (f"M {x0},{ybase} L {x0},{ytop + r:.0f} "
-            f"A {r:.0f},{ry:.0f} 0 0 1 {x1},{ytop + r:.0f} L {x1},{ybase} Z")
+# ---- the portal: rings lit by the door light ---------------------------------------------
+rings = []
+for i in range(4):
+    ring = (f"<path d='{arch(X0S[i], X1S[i], TOPS[i], BASE)} "
+            f"{arch(X0S[i+1], X1S[i+1], TOPS[i+1], BASE, rev=True)}' "
+            f"fill-rule='evenodd' fill='url(#tunnel)'/>")
+    rim_in = (f"<path d='{arch(X0S[i+1], X1S[i+1], TOPS[i+1], BASE)}' fill='none' "
+              f"stroke='#f0c987' stroke-width='{2.4 - i*0.3:.1f}' opacity='{.85 - i*.12:.2f}'/>")
+    label = (f"<text x='{X0S[i] + 32}' y='{BASE - 26}' font-size='11.5' letter-spacing='2.2' "
+             f"font-weight='600' fill='{GATE_INK[i]}' opacity='.92' "
+             f"transform='rotate(-90 {X0S[i] + 32} {BASE - 26})'>{GATE_NAMES[i]}</text>")
+    rings.append(ring + rim_in + label)
+FRAME_SVG = ("".join(rings)
+             + f"<path d='{arch(X0S[0], X1S[0], TOPS[0], BASE)}' fill='none' "
+               f"stroke='#5f93d8' stroke-width='2.6' opacity='.9'/>")
 
-frame_svg = []
-for i, (inset, ytop, edge, name) in enumerate(FRAMES):
-    x0, x1 = 640 + inset, 1280 - inset
-    yb = BASE
-    frame_svg.append(f"<path d='{arch(x0, x1, ytop, yb)}' fill='url(#jamb{i})' "
-                     f"stroke='{edge}' stroke-width='2.6'/>")
-    frame_svg.append(f"<path d='{arch(x0 + 8, x1 - 8, ytop + 8, yb)}' fill='none' "
-                     f"stroke='#05080f' stroke-width='1.6' opacity='.85'/>")
-    frame_svg.append(f"<text x='{x0 + 27}' y='{yb - 26}' font-size='11.5' letter-spacing='2.2' "
-                     f"font-weight='600' fill='{edge}' opacity='.9' "
-                     f"transform='rotate(-90 {x0 + 27} {yb - 26})'>{name}</text>")
-FRAME_SVG = "".join(frame_svg)
+# stone texture over the rings
+TEXTURE = (f"<g clip-path='url(#ringclip)'><rect x='560' y='120' width='800' height='760' "
+           f"filter='url(#stone)' opacity='.10'/></g>")
 
 # ---- paradise through the opening --------------------------------------------------------
+OX0, OX1, OTOP = X0S[4], X1S[4], TOPS[4]
 PARADISE = f"""
   <g clip-path='url(#doorclip)'>
-    <rect x='{OPEN_X0}' y='{OPEN_TOP}' width='{OPEN_X1-OPEN_X0}' height='{BASE-OPEN_TOP}' fill='url(#psky)'/>
-    <circle cx='960' cy='646' r='46' fill='#fff3d6'/>
-    <circle cx='960' cy='646' r='46' fill='#ffe9b8' filter='url(#blur18)'/>
-    <ellipse cx='960' cy='648' rx='150' ry='90' fill='#ffd98f' opacity='.5' filter='url(#blur24)'/>
-    <path d='M {OPEN_X0},700 Q 905,668 950,692 T {OPEN_X1},684 L {OPEN_X1},{BASE} L {OPEN_X0},{BASE} Z' fill='#7fae7a'/>
-    <path d='M {OPEN_X0},738 Q 920,706 1000,730 T {OPEN_X1},722 L {OPEN_X1},{BASE} L {OPEN_X0},{BASE} Z' fill='#5d9161'/>
-    <path d='M {OPEN_X0},788 Q 930,760 1010,782 T {OPEN_X1},774 L {OPEN_X1},{BASE} L {OPEN_X0},{BASE} Z' fill='#41724c'/>
-    <path d='M 946,{BASE} Q 950,780 968,742 Q 978,716 964,690' stroke='#ffe9b0' stroke-width='7'
-          fill='none' opacity='.85' stroke-linecap='round'/>
-    <path d='M 946,{BASE} Q 950,780 968,742 Q 978,716 964,690' stroke='#fff7dd' stroke-width='2.4'
+    <rect x='{OX0}' y='{OTOP}' width='{OX1-OX0}' height='{BASE-OTOP}' fill='url(#psky)'/>
+    <ellipse cx='960' cy='450' rx='120' ry='26' fill='#ffffff' opacity='.20' filter='url(#blur18)'/>
+    <ellipse cx='905' cy='500' rx='90' ry='18' fill='#ffe9c8' opacity='.25' filter='url(#blur18)'/>
+    <circle cx='960' cy='640' r='120' fill='#ffe9b8' opacity='.55' filter='url(#blur24)'/>
+    <circle cx='960' cy='640' r='44' fill='#fff6de'/>
+    <circle cx='960' cy='640' r='58' fill='#ffedc2' opacity='.8' filter='url(#blur6)'/>
+    <ellipse cx='960' cy='642' rx='108' ry='3.5' fill='#fff7dd' opacity='.6' filter='url(#blur6)'/>
+    <path d='M {OX0},690 Q 910,664 950,680 T {OX1},672 L {OX1},700 L {OX0},700 Z' fill='#cfe0b4' opacity='.9'/>
+    <path d='M {OX0},696 Q 905,668 950,690 T {OX1},682 L {OX1},{BASE} L {OX0},{BASE} Z' fill='#a3c48d'/>
+    <path d='M {OX0},734 Q 920,704 1000,728 T {OX1},720 L {OX1},{BASE} L {OX0},{BASE} Z' fill='#6fa06f'/>
+    <path d='M {OX0},786 Q 930,758 1010,780 T {OX1},772 L {OX1},{BASE} L {OX0},{BASE} Z' fill='#487a52'/>
+    <path d='M 946,{BASE} Q 950,782 968,744 Q 978,718 964,692' stroke='#ffe9b0' stroke-width='8'
+          fill='none' opacity='.9' stroke-linecap='round'/>
+    <path d='M 946,{BASE} Q 950,782 968,744 Q 978,718 964,692' stroke='#fff9e6' stroke-width='2.6'
           fill='none' stroke-linecap='round'/>
     <g fill='#2c4d38'>
-      <ellipse cx='884' cy='742' rx='15' ry='20'/><rect x='881.5' y='752' width='5' height='16'/>
-      <ellipse cx='1042' cy='772' rx='18' ry='24'/><rect x='1039' y='784' width='6' height='18'/>
+      <ellipse cx='886' cy='744' rx='14' ry='19'/><rect x='883.5' y='754' width='5' height='15'/>
+      <ellipse cx='1040' cy='774' rx='17' ry='23'/><rect x='1037' y='786' width='6' height='17'/>
     </g>
-    <path d='M 900 420 q 7 -6 14 0 q 7 -6 14 0' stroke='#a8834d' stroke-width='2' fill='none' opacity='.7'/>
-    <path d='M 990 452 q 6 -5 12 0 q 6 -5 12 0' stroke='#a8834d' stroke-width='1.7' fill='none' opacity='.6'/>
-    <circle cx='902' cy='560' r='1.8' fill='#fff' opacity='.8'/>
-    <circle cx='1020' cy='520' r='1.5' fill='#fff' opacity='.7'/>
-    <circle cx='944' cy='486' r='1.3' fill='#fff' opacity='.6'/>
+    <path d='M 906 424 q 7 -6 14 0 q 7 -6 14 0' stroke='#a8834d' stroke-width='2' fill='none' opacity='.7'/>
+    <path d='M 992 452 q 6 -5 12 0 q 6 -5 12 0' stroke='#a8834d' stroke-width='1.7' fill='none' opacity='.6'/>
   </g>"""
 
-# ---- light spilling out of the doorway ---------------------------------------------------
+# ---- volumetric light, motes, threshold --------------------------------------------------
+motes = []
+for _ in range(30):
+    mx = random.uniform(850, 1070) + random.uniform(-40, 40)
+    my = random.uniform(420, 1020)
+    r = random.uniform(1.0, 2.8)
+    blur = " filter='url(#blur6)'" if random.random() < 0.35 else ""
+    motes.append(f"<circle cx='{mx:.0f}' cy='{my:.0f}' r='{r:.1f}' fill='#ffe9b8' "
+                 f"opacity='{random.uniform(.25,.75):.2f}'{blur}/>")
+MOTES = "".join(motes)
+
 SPILL = f"""
-  <ellipse cx='960' cy='640' rx='500' ry='420' fill='url(#gold)' opacity='.42' filter='url(#blur24)'/>
-  <polygon points='918,{BASE} 700,1080 1220,1080 1002,{BASE}' fill='url(#pathlight)'/>
-  <polygon points='930,{BASE} 830,1080 1090,1080 990,{BASE}' fill='url(#pathcore)'/>
-  <ellipse cx='960' cy='{BASE}' rx='250' ry='22' fill='#ffd98f' opacity='.5' filter='url(#blur18)'/>"""
+  <ellipse cx='960' cy='620' rx='520' ry='430' fill='url(#gold)' opacity='.45' filter='url(#blur24)'/>
+  <ellipse cx='960' cy='600' rx='170' ry='280' fill='#ffe9b8' opacity='.22' filter='url(#blur24)'/>
+  <polygon points='912,{BASE} 620,1080 1300,1080 1008,{BASE}' fill='url(#pathlight)' filter='url(#blur6)'/>
+  <polygon points='928,{BASE} 810,1080 1110,1080 992,{BASE}' fill='url(#pathcore)'/>
+  <ellipse cx='960' cy='{BASE}' rx='260' ry='24' fill='#ffd98f' opacity='.55' filter='url(#blur18)'/>"""
+
+# ---- the figure at the threshold ---------------------------------------------------------
+FIGURE = f"""
+  <ellipse cx='960' cy='806' rx='30' ry='52' fill='#ffdf9e' opacity='.4' filter='url(#blur18)'/>
+  <polygon points='948,{BASE+6} 972,{BASE+6} 1006,1080 918,1080' fill='#04050a' opacity='.30' filter='url(#blur6)'/>
+  <g fill='#0a0d15'>
+    <circle cx='960' cy='764' r='7.5'/>
+    <path d='M 951,773 Q 947,780 948,796 L 950,816 L 947,{BASE+4} L 955,{BASE+4} L 957,818
+             L 963,818 L 965,{BASE+4} L 973,{BASE+4} L 970,816 L 972,796 Q 973,780 969,773 Z'/>
+  </g>
+  <path d='M 953,774 Q 950,780 950,794' stroke='#ffd98f' stroke-width='1.6' fill='none' opacity='.8'/>
+  <path d='M 967,774 Q 970,780 970,794' stroke='#ffd98f' stroke-width='1.6' fill='none' opacity='.8'/>
+  <ellipse cx='960' cy='{BASE+5}' rx='26' ry='5' fill='#050608' opacity='.6' filter='url(#blur6)'/>"""
+
+# ---- floor reflection of the portal ------------------------------------------------------
+REFLECT = f"""
+  <g transform='translate(0,{2*BASE}) scale(1,-1)' mask='url(#reflmask)' opacity='.30'
+     filter='url(#blur6)'>
+    {FRAME_SVG}{PARADISE}
+  </g>"""
 
 SVG = f"""
 <svg width='1920' height='1080' viewBox='0 0 1920 1080' xmlns='http://www.w3.org/2000/svg'
@@ -152,25 +200,21 @@ SVG = f"""
       <stop offset='1' stop-color='#0a0913'/>
     </linearGradient>
     <linearGradient id='floor' x1='0' y1='0' x2='0' y2='1'>
-      <stop offset='0' stop-color='#0d0f1e'/>
-      <stop offset='1' stop-color='#050409'/>
+      <stop offset='0' stop-color='#10121f'/>
+      <stop offset='1' stop-color='#040308'/>
     </linearGradient>
-    <linearGradient id='jamb0' x1='0' y1='0' x2='1' y2='0'>
-      <stop offset='0' stop-color='#0b1322'/><stop offset='1' stop-color='#182c4d'/>
-    </linearGradient>
-    <linearGradient id='jamb1' x1='0' y1='0' x2='1' y2='0'>
-      <stop offset='0' stop-color='#0d1728'/><stop offset='1' stop-color='#1e3a5e'/>
-    </linearGradient>
-    <linearGradient id='jamb2' x1='0' y1='0' x2='1' y2='0'>
-      <stop offset='0' stop-color='#12202c'/><stop offset='1' stop-color='#3d5b52'/>
-    </linearGradient>
-    <linearGradient id='jamb3' x1='0' y1='0' x2='1' y2='0'>
-      <stop offset='0' stop-color='#231d12'/><stop offset='1' stop-color='#6e5526'/>
-    </linearGradient>
+    <radialGradient id='tunnel' cx='960' cy='650' r='500' gradientUnits='userSpaceOnUse'>
+      <stop offset='0' stop-color='#f7d896'/>
+      <stop offset='.28' stop-color='#d8ae66'/>
+      <stop offset='.46' stop-color='#8a7a52'/>
+      <stop offset='.64' stop-color='#41506e'/>
+      <stop offset='.84' stop-color='#1c2846'/>
+      <stop offset='1' stop-color='#101a30'/>
+    </radialGradient>
     <linearGradient id='psky' x1='0' y1='0' x2='0' y2='1'>
-      <stop offset='0' stop-color='#8ec8e8'/>
-      <stop offset='.42' stop-color='#ffe1a6'/>
-      <stop offset='.62' stop-color='#ffcf82'/>
+      <stop offset='0' stop-color='#7fc4e8'/>
+      <stop offset='.38' stop-color='#ffe3ae'/>
+      <stop offset='.60' stop-color='#ffd188'/>
       <stop offset='1' stop-color='#f2b968'/>
     </linearGradient>
     <radialGradient id='gold' cx='.5' cy='.5' r='.5'>
@@ -178,40 +222,52 @@ SVG = f"""
       <stop offset='1' stop-color='#ffd98f' stop-opacity='0'/>
     </radialGradient>
     <linearGradient id='pathlight' x1='0' y1='0' x2='0' y2='1'>
-      <stop offset='0' stop-color='#ffd98f' stop-opacity='.34'/>
+      <stop offset='0' stop-color='#ffd98f' stop-opacity='.36'/>
       <stop offset='1' stop-color='#ffd98f' stop-opacity='0'/>
     </linearGradient>
     <linearGradient id='pathcore' x1='0' y1='0' x2='0' y2='1'>
-      <stop offset='0' stop-color='#ffe9b8' stop-opacity='.5'/>
-      <stop offset='1' stop-color='#ffe9b8' stop-opacity='.02'/>
+      <stop offset='0' stop-color='#ffe9b8' stop-opacity='.55'/>
+      <stop offset='1' stop-color='#ffe9b8' stop-opacity='.03'/>
     </linearGradient>
     <radialGradient id='vig' cx='.5' cy='.5' r='.72'>
-      <stop offset='.5' stop-color='#000' stop-opacity='0'/>
-      <stop offset='1' stop-color='#000' stop-opacity='.62'/>
+      <stop offset='.48' stop-color='#000' stop-opacity='0'/>
+      <stop offset='1' stop-color='#000' stop-opacity='.66'/>
     </radialGradient>
     <radialGradient id='edgeonly' cx='.5' cy='.52' r='.62'>
       <stop offset='.32' stop-color='#000'/>
       <stop offset='.60' stop-color='#999'/>
       <stop offset='1' stop-color='#fff'/>
     </radialGradient>
-    <clipPath id='doorclip'>
-      <path d='{arch(OPEN_X0, OPEN_X1, OPEN_TOP, BASE)}'/>
-    </clipPath>
-    <mask id='edges'>
-      <rect width='1920' height='1080' fill='url(#edgeonly)'/>
+    <linearGradient id='reflfade' x1='0' y1='{BASE}' x2='0' y2='1010'
+                    gradientUnits='userSpaceOnUse'>
+      <stop offset='0' stop-color='#fff'/>
+      <stop offset='1' stop-color='#000'/>
+    </linearGradient>
+    <mask id='reflmask'>
+      <rect x='0' y='{BASE}' width='1920' height='{1080-BASE}' fill='url(#reflfade)'/>
     </mask>
+    <clipPath id='doorclip'><path d='{arch(OX0, OX1, OTOP, BASE)}'/></clipPath>
+    <clipPath id='ringclip'><path d='{arch(X0S[0], X1S[0], TOPS[0], BASE)}'/></clipPath>
+    <mask id='edges'><rect width='1920' height='1080' fill='url(#edgeonly)'/></mask>
     <filter id='storm' x='-60%' y='-60%' width='220%' height='220%'>
-      <feTurbulence type='fractalNoise' baseFrequency='0.012 0.02' numOctaves='3' seed='4' result='t'/>
+      <feTurbulence type='fractalNoise' baseFrequency='0.012 0.02' numOctaves='4' seed='4' result='t'/>
       <feGaussianBlur in='SourceGraphic' stdDeviation='28' result='b'/>
-      <feDisplacementMap in='b' in2='t' scale='120'/>
+      <feDisplacementMap in='b' in2='t' scale='140'/>
     </filter>
+    <filter id='stone' x='-20%' y='-20%' width='140%' height='140%'>
+      <feTurbulence type='fractalNoise' baseFrequency='0.06 0.09' numOctaves='3' seed='9'/>
+      <feColorMatrix type='matrix' values='0 0 0 0 .85  0 0 0 0 .78  0 0 0 0 .62  0 0 0 .5 0'/>
+      <feComposite operator='in' in2='SourceGraphic'/>
+    </filter>
+    <filter id='blur6' x='-60%' y='-60%' width='220%' height='220%'>
+      <feGaussianBlur stdDeviation='6'/></filter>
     <filter id='blur18' x='-40%' y='-40%' width='180%' height='180%'>
       <feGaussianBlur stdDeviation='18'/></filter>
     <filter id='blur24' x='-60%' y='-60%' width='220%' height='220%'>
       <feGaussianBlur stdDeviation='24'/></filter>
     <filter id='grain'>
       <feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/>
-      <feColorMatrix type='matrix' values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .04 0'/>
+      <feColorMatrix type='matrix' values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .045 0'/>
     </filter>
   </defs>
 
@@ -219,9 +275,15 @@ SVG = f"""
   <rect y='{BASE}' width='1920' height='{1080-BASE}' fill='url(#floor)'/>
   {STORM}
   <g mask='url(#edges)'>{CHAOS_LINES}</g>
+  {HUG}
+  {REFLECT}
   {SPILL}
   {FRAME_SVG}
+  {TEXTURE}
   {PARADISE}
+  {MOTES}
+  {FIGURE}
+  <rect width='1920' height='1080' fill='#1a2b4a' opacity='.10'/>
   <rect width='1920' height='1080' fill='url(#vig)'/>
   <rect width='1920' height='1080' filter='url(#grain)' opacity='.55'/>
 </svg>"""
