@@ -1,0 +1,106 @@
+# EdgeStack — an evidence-gated trading agent
+
+**The LLM proposes. A deterministic rule engine disposes. Every number in the strategy is a
+measurement, and every refusal to trade is journaled with its reason.**
+
+Built for the lablab.ai × Alpaca **AI Trading Agents Hackathon** on Alpaca's MCP Server v2,
+paper account `PA3ZCDDOPR2N`.
+
+---
+
+## What it trades
+
+Three components, each carrying its own validated evidence:
+
+| component | rule | evidence |
+| --- | --- | --- |
+| **Overnight core** | Long SPY close→open only, when the 12-month trend is up AND credit is healthy (HYG > its 100d SMA) | Overnight Sharpe **0.89** vs **0.05** intraday, positive in 8/9 eras since 1993. Credit gate passed two disjoint validation windows: Sharpe 0.80→0.98 (train), 0.65→**1.02** (validation), drawdown halved |
+| **Capitulation sleeve** | Buy 5-day panics (stretch < −2.5σ) on heavy-but-not-extreme volume (1.4–2.5×), basket of 7 ETFs, 3-session hold | **+1.42%/event, 67.6% win, t=4.27** across 136 events / 33 years — surrogate-tested, era-robust |
+| **Options component** | Defined-risk bull put spreads on the capitulation signal, behind 14 deterministic risk gates | Direction validated in the underlying; option expression sized small because our own tests showed retail spreads eat most of the edge — and we say so |
+
+The signature finding that shapes all three: **markets revert emotional moves and honor
+informational ones.** Above 2.5× volume, "real news arrived" and the bounce dies. When bond
+volatility is stressed, the same signal returns +0.07% instead of +1.55% (t(diff)=6.58,
+out-of-sample, n=4,359). When credit deteriorates, the core stands down. Same boundary,
+measured three independent ways.
+
+## Architecture
+
+```text
+                     ┌─────────────────────────────┐
+   Yahoo (signals)──▶│  signal_engine  (pure math) │   nothing in this box
+   TLT/HYG regimes──▶│  equity_core    (gates)     │   consults a model
+                     │  risk_gates     (14 gates)  │
+                     └──────────────┬──────────────┘
+                                    │ fully-specified proposals
+                     ┌──────────────▼──────────────┐
+                     │  broker.py                  │──▶ Alpaca MCP Server v2 (:8000)
+                     │  (MCP first, REST fallback, │        │ streamable-http
+                     │   every route journaled)    │        ▼
+                     └──────────────┬──────────────┘    Alpaca Paper API
+                                    ▼
+                     journal/ (append-only decisions) ──▶ dashboard (:8787, live URL)
+```
+
+- **MCP integration is real, not decorative**: account reads and order submission route
+  through the Alpaca MCP Server (`agent/mcp_gateway.py`, streamable-http JSON-RPC), with
+  REST as a logged reliability fallback. The decision journal records which path served
+  every call.
+- **Determinism**: signals are arithmetic; gates are pure functions; the engine reproduces
+  its 33-year research record exactly (`agent/test_signal_engine.py` — n, mean and win rate
+  match to three decimals; `agent/test_risk_gates.py` — 22 cases, every gate must fire for
+  its own reason).
+- **The journal is the product**: no-trade sessions record the near-misses and which gate
+  refused them. An agent that can explain why it did nothing is the point.
+
+## Run it
+
+```bash
+cp .env.example .env            # paper keys from app.alpaca.markets
+python host/run.py mcp          # Alpaca MCP Server v2.3.0 (pinned, via uvx)
+python host/run.py scheduler    # session passes: entries 15:45 ET, exits 09:31 ET
+python host/run.py dashboard    # live status page on :8787
+python agent/run_agent.py --dry-run   # one decision pass, no orders
+```
+
+Supervisors are ensure-running (restart on crash, never double-bind) and registered at
+logon. A Docker path for the MCP server ships in `Dockerfile`/`docker-compose.yml`.
+
+## The research behind it
+
+~110 scripts of primary research are in [`scripts/`](scripts/); the findings documents are
+the audit trail:
+
+- [EDGE-PORTFOLIO.md](EDGE-PORTFOLIO.md) — the validated edges and the combined stack
+- [ENGINE-TRIAL.md](ENGINE-TRIAL.md) — out-of-sample discipline: every parameter tuning
+  failed validation; the untuned rules won. One borrowed rule (the credit canary) passed
+  both windows and was adopted
+- [HERD-REVERSAL.md](HERD-REVERSAL.md) — the capitulation edge, 33 years, surrogate-tested
+- [PLAYBOOK.md](PLAYBOOK.md) — how this submission was assembled
+
+**Tested and rejected, in writing**: Elliott waves (surrogates reproduce the "patterns"),
+Fibonacci levels (rank 4th–14th of 28 arbitrary bands), intraday mean reversion (bid-ask
+bounce), leveraged-ETF decay shorting (drag is real, drift swamps it), five macro overlays
+(four contradicted out-of-sample), and our own first options design (negative expectancy
+from quoting at the worst fill — found, measured, fixed). The negative results are load-
+bearing: they are why the surviving rules can be trusted.
+
+## Honest limits
+
+- The equity edges are **risk-adjusted** edges; a 5-session P&L window is mostly noise and
+  we do not pretend otherwise.
+- Signals are rare by design (gates refuse most sessions). Flat is a position.
+- Option-level expectancy could not be established from free historical data (no quote
+  history exists on this tier); the options component is therefore sized as a satellite,
+  priced from live quotes only.
+
+## Hackathon compliance
+
+| requirement | where |
+| --- | --- |
+| Autonomous agent on Alpaca | `agent/scheduler.py` + session passes, unattended |
+| **Uses Alpaca MCP server** | `agent/mcp_gateway.py` → `broker.py` routing, journaled |
+| Options incorporated | bull put spreads via MLeg (≤4 legs, all shorts covered) |
+| Fresh $100k paper account | `PA3ZCDDOPR2N` |
+| Live application URL | dashboard on :8787 (tunnel in `host/run.py tunnel`) |
+| Write-up / video / deck | generated from the decision journal |

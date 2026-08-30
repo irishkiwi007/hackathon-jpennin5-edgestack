@@ -1,0 +1,100 @@
+# Can we get independent bets? — measured, not assumed
+
+Question: the drift-aligned core wins ~26% of the time. Over ~4 bets that is a 30% chance of zero
+winners. Can uncorrelated assets supply independent bets and fix that without giving up edge?
+
+**Answer: no. There is effectively one bet with genuine edge, and right now the diversification
+is not even there to be had.** Scripts: `scripts/uncorr.py`, `scripts/gld.py`, `scripts/regime.py`.
+
+---
+
+## Step 1 — which assets are uncorrelated AND have liquid options?
+
+26 candidates, 5-day returns, 2018–2026. Six passed |corr| < 0.55 with a usable chain:
+
+| Symbol | Group | corr SPY | Ann. drift | Median spread |
+|---|---|---|---|---|
+| GLD | gold | +0.194 | **+16.6%** | 6.5% |
+| GDX | gold | +0.318 | +27.2% | 13.8% |
+| SLV | gold | +0.324 | +24.2% | 6.0% |
+| TLT | rates | **+0.027** | −3.6% | 3.7% |
+| IEF | rates | +0.042 | −1.1% | 5.3% |
+| LQD | rates | +0.499 | −0.9% | 9.8% |
+
+The whole equity complex is one factor: QQQ 0.92, DIA 0.94, IWM 0.86 to SPY. **Ten equity tickers
+is one bet.** And the candidates cluster internally too — GLD/GDX/SLV run 0.74–0.83 with each
+other, TLT/IEF 0.91. So the real factor count is three: equity, gold, rates.
+
+*(USO's +157%/yr and UVXY's +1401%/yr are reverse-split artifacts, not returns. Ignore them.)*
+
+## Step 2 — does the edge exist on the uncorrelated assets?
+
+An uncorrelated asset with no edge adds variance without expected return. Same regime-partitioned
+alpha test, applied to each:
+
+| Underlying | Drift | Structures tested | **Positive alpha in every regime** | Best |
+|---|---|---|---|---|
+| **GLD** | +14.9% | 54 | **0** | — nothing survives |
+| TLT | −3.3% | 8 | 2 | `call debit 83.5/84`: alpha $4.3, **risk $9**, chain only 15C/15P |
+| SLV | +21.3% | 54 | 5 | all put **credit** spreads, alpha/risk **0.004–0.020** ≈ zero |
+| **SPY** | +15.8% | 95 | 11 | `call debit 780/785`: alpha $36.5, risk $45, worst α/R **0.221** |
+
+**GLD is the decisive result.** It has the profile you would design for — genuinely uncorrelated,
++14.9%/yr drift, liquid chain — and **zero of 54 structures** show regime-stable alpha. The SPY edge
+does not generalise; it is specific to SPY's skew.
+
+TLT's two survivors risk $9 each on a 15-strike chain and fight a negative drift. SLV's five are
+penny-collecting credit spreads with essentially no edge.
+
+> **There is one bet with genuine edge: SPY. Diversification cannot solve the zero-winner problem
+> because there is nothing edge-bearing to diversify into.**
+
+---
+
+## Step 3 — correlations move, and the movement is the signal
+
+The static table above is misleading, and dangerously so. Rolling 63-day correlation to SPY:
+
+| | Decade average | **Current** |
+|---|---|---|
+| SPY–TLT | +0.03 | **+0.290** |
+| SPY–GLD | +0.19 | **+0.477** |
+| SPY–IWM | 0.86 | +0.775 |
+| SPY–HYG | 0.76 | +0.658 |
+| **Average \|corr\|** | — | **0.551 — 70th percentile of the decade** |
+
+**GLD's current correlation to SPY is 2.5× its decade average.** The diversification implied by the
+static table is not available today. TLT is *positively* correlated — bonds are not hedging equities
+at all right now.
+
+SPY–TLT ranged from **−0.69 to +0.57** over the decade, positive 35% of the time. The "bonds hedge
+stocks" assumption held only 65% of the last decade — it is a regime, not a law.
+
+### Correlation as a positioning indicator
+
+| SPY–TLT | Regime | What it means for positioning |
+|---|---|---|
+| < −0.25 | flight-to-quality | Bonds genuinely offset equity drawdowns. A rates leg is real diversification. |
+| −0.25 to +0.15 | transitional | Hedge relationship weak both ways. Do not rely on it. |
+| **> +0.15** | **rates-driven** | **Bonds are a second bet on the same driver. Diversification unavailable.** |
+
+**Currently +0.290 → rates-driven.** Both equities and bonds are being priced off the same rates
+impulse. Adding a TLT leg would not hedge anything.
+
+Average cross-asset |corr| at the **70th percentile** says the same thing from another angle: when
+everything correlates, position size is the only remaining risk control. Rising correlation is also
+a classic pre-stress signal, so this is worth re-checking each morning of the competition — it is a
+cheap regime read and nothing in the surveyed field computes it.
+
+---
+
+## What follows
+
+1. **Diversification across underlyings is closed** — on edge grounds (GLD has none) and on
+   correlation grounds (it is 0.477 right now, not 0.19).
+2. **The 26% win rate cannot be fixed by more bets.** With one edge-bearing underlying, extra
+   positions are the same bet at different strikes.
+3. **That leaves three honest options**: accept the ~30% zero-winner risk; buy the win rate with a
+   complement and pay ~18× in risk-adjusted return; or cut size so the outcome matters less.
+4. **Run the correlation regime check daily.** It is the cheapest useful signal found in this whole
+   exercise, and it currently says: do not expect a hedge to hedge.

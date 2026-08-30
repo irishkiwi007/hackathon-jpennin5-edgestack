@@ -1,0 +1,31 @@
+services:
+  alpaca-mcp:
+    build:
+      context: .
+      args:
+        ALPACA_MCP_VERSION: "2.3.0"
+    image: alpaca-mcp-server:2.3.0
+    container_name: alpaca-mcp
+    env_file: .env
+    environment:
+      # Explicit belt-and-braces default. .env can override, but never silently.
+      ALPACA_PAPER_TRADE: "${ALPACA_PAPER_TRADE:-true}"
+    ports:
+      # Bound to loopback ONLY. Changing this to "8000:8000" exposes an
+      # unauthenticated trading API to your whole network. Don't.
+      - "127.0.0.1:8000:8000"
+    restart: unless-stopped
+    # Hardening. If the server errors on a read-only filesystem (some libs want a
+    # writable cache dir), this is the first line to drop — not the port binding.
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
