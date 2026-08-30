@@ -139,7 +139,7 @@ Work through the steps IN ORDER, checking boxes here (edit this file) as they co
   Commits: cea4f03, 89b74e2, 07b19aa.
 
 ## REMAINING USER ACTIONS (the agent cannot do these)
-1. git remote add origin <their-github-repo-url> && git push -u origin master
+1. [DONE by agent] public repo https://github.com/jpennin5/edgestack created and pushed
 2. Rotate paper API keys in the Alpaca dashboard, update .env, restart supervisors
    (host/run.py processes pick up new env on restart).
 3. Record the ~4-min video from docs/VIDEO-SCRIPT.md; export slides from docs/SLIDES.md;

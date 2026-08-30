@@ -19,4 +19,4 @@ Post 3:
 Post 4:
 > Every order routes through Alpaca's MCP server. Every session - including the ones where
 > the agent refuses to trade - is journaled with its evidence. Live dashboard: [URL]
-> Repo: [github link]. An agent that can explain why it did nothing is the point.
+> Repo: https://github.com/jpennin5/edgestack. An agent that can explain why it did nothing is the point.
