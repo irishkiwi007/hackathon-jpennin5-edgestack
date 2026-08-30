@@ -195,7 +195,7 @@ rebuilt (video/build_slides.py). Committed and pushed.
   probe bug fixed — dashboard implements do_HEAD, watcher probes with GET)
 - Video: docs/demo.mp4 (3:35, en-US-AndrewNeural via edge-tts, rebuild: video/build.py)
 - Slides: docs/slides.pdf (10 slides; slide 9 = business/roadmap/team; limits merged
-  into close; rebuild: video/build_slides.py) + docs/cover.png (lablab cover field)
+  into close; rebuild: video/build_slides.py); docs/cover.png is now an advertising-style hero (drawdown chart from the real research record + live journal refusal card, rebuild: video/build_cover.py, data snapshot video/raw/cover_curves.json force-added)
 - Form copy paste-ready: docs/SUBMISSION.md (title/short/long/tags + all fields)
 - One-pager: docs/WRITEUP.md; social thread: docs/SOCIAL.md (URLs filled)
 - Rubric-review pass done (commit 13cf750): business value + roadmap + team added

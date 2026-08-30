@@ -1,4 +1,4 @@
-"""Build docs/slides.pdf (10 slides, 16:9) + docs/cover.png (1920x1080 lablab cover).
+"""Build docs/slides.pdf (10 slides, 16:9). Cover: see video/build_cover.py.
 
 Same pipeline as the video: HTML rendered by Edge headless, so the deck, the dashboard and
 the video share one visual language. Charts are pure CSS (print-safe). Rebuild:
@@ -238,14 +238,4 @@ subprocess.run([EDGE, "--headless", "--disable-gpu", "--no-pdf-header-footer",
                 f"--print-to-pdf={pdf}", uri], capture_output=True, timeout=180)
 print("PDF:", pdf, f"{os.path.getsize(pdf)/1024:.0f} KB")
 
-# cover image for the lablab form = slide 1 rendered at 1920x1080
-cover_html = ("<!doctype html><html><head><meta charset='utf-8'><style>" + CSS
-              + ".slide{width:1920px;height:1080px;padding:80px 96px}@page{size:auto}"
-              + "</style></head><body>" + SLIDES[0] + "</body></html>")
-cpath = os.path.join(HERE, "cards", "cover.html")
-open(cpath, "w", encoding="utf-8").write(cover_html)
-cover = os.path.join(ROOT, "docs", "cover.png")
-subprocess.run([EDGE, "--headless", "--disable-gpu", "--hide-scrollbars",
-                "--window-size=1920,1080", f"--screenshot={cover}",
-                "file:///" + cpath.replace("\\", "/")], capture_output=True, timeout=120)
-print("cover:", cover, f"{os.path.getsize(cover)/1024:.0f} KB")
+# docs/cover.png is now built by video/build_cover.py (hero graphic), not from slide 1.
