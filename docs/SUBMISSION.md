@@ -6,9 +6,9 @@
 
 **Short description** (winners' house style: one sentence, what + how + for whom)
 
-> An autonomous Alpaca trading agent where every rule survived an attempt to kill it —
-> 33 years of data, three backtest engines, and a public graveyard of rejected ideas behind
-> an equity-plus-options strategy that journals every trade and every refusal.
+> An autonomous Alpaca trading agent built on one idea — evidence opens the door to
+> opportunity: 33 years of data, three backtest engines, and a public graveyard of rejected
+> ideas behind an equity-plus-options strategy that journals every trade and every refusal.
 
 **Long description**
 

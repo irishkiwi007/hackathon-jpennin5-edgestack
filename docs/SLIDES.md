@@ -1,6 +1,6 @@
 # Slide deck outline (export to PDF; ~7 slides, one idea each)
 
-1. TITLE — EdgeStack: every rule survived an attempt to kill it. (name, account ID, URLs)
+1. TITLE — EdgeStack: evidence opens the door to opportunity. (name, account ID, URLs)
 2. PROBLEM — LLM agents lose money confidently. Rules from vibes. What evidence does a rule
    need before it deserves to exist?
 3. THE GRAVEYARD — table of tested-and-rejected ideas with the number that killed each.

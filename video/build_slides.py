@@ -77,8 +77,8 @@ SLIDES.append(f"""<div class='slide'>{CHIPS}
 <div style='margin-top:.9in'>
 <div class='kicker'>Evidence-gated autonomous trading</div>
 <h1>Edge<span class='acc'>Stack</span></h1>
-<h1 style='font-size:46px;margin-top:14px'>Every rule survived an attempt
-to <span class='bad'>kill it</span>.</h1>
+<h1 style='font-size:46px;margin-top:14px'>Evidence opens the door to
+<span style='color:var(--amber)'>opportunity</span>.</h1>
 <p class='sub'>An agent whose strategy was built backward: months spent trying to
 disprove candidate edges — and it only trades what survived.</p></div>
 <div class='cards'>

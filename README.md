@@ -5,7 +5,8 @@ vibes.** Ask a model for a trading strategy and it will give you one — plausib
 articulate, and untested. The question nobody makes the agent answer is: *what evidence
 does a rule need before it deserves to exist?*
 
-**EdgeStack's answer: every rule in this agent survived an attempt to kill it.**
+**EdgeStack's answer: evidence opens the door to opportunity — no rule trades here
+until our best attempts to kill it have failed.**
 
 Thirty-three years of data. Surrogate nulls. Two disjoint validation windows where every
 parameter tuning *failed* and was rejected. Three independent backtest engines that had to

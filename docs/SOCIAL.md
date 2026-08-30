@@ -3,7 +3,7 @@
 Post 1:
 > Most AI trading agents lose money confidently — their rules come from vibes.
 > For the @Alpaca x @lablabai AI Trading Agents Hackathon I built EdgeStack: an agent where
-> every rule survived an attempt to kill it. 33 years of data. 3 backtest engines. 1 graveyard. [thread]
+> evidence opens the door to opportunity. 33 years of data. 3 backtest engines. 1 graveyard. [thread]
 
 Post 2:
 > The graveyard is the point: Elliott waves (surrogates reproduce the "patterns"),

@@ -180,7 +180,7 @@ def render(d: dict) -> str:
 <meta http-equiv="refresh" content="90"><title>EdgeStack</title>
 <style>{CSS}</style></head><body>
 <h1>Edge<span>Stack</span> <span style="font-size:13px" class="{alive_cls}">&#9679; {alive_txt}</span></h1>
-<p class="tag">Every rule survived an attempt to kill it &middot; 33 years of evidence, three
+<p class="tag">Evidence opens the door to opportunity &middot; 33 years of evidence, three
 backtest engines, one graveyard &middot; Alpaca paper account <span class="mono">{esc(a['number'])}</span></p>
 
 <div class="grid">

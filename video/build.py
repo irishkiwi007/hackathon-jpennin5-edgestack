@@ -68,12 +68,12 @@ SEGMENTS = [
     ("s01", card("s01", """
 <div class='tag'>lablab.ai &times; Alpaca &middot; AI Trading Agents Hackathon</div>
 <h1>Edge<b>Stack</b></h1>
-<p style='font-size:40px;color:#e5e7eb;margin-top:34px'>Every rule in this agent survived
-an attempt to kill it.</p>
+<p style='font-size:40px;color:#e5e7eb;margin-top:34px'>Evidence opens the door
+to opportunity.</p>
 <p>33 years of data &middot; three backtest engines &middot; one graveyard &middot;
 live on Alpaca paper &middot; account <span class='mono'>PA3ZCDDOPR2N</span></p>"""),
      "EdgeStack. An autonomous trading agent built for the Alpaca A I Trading Agents "
-     "Hackathon, with one organizing idea: every rule had to survive an attempt to kill it."),
+     "Hackathon, with one organizing idea: evidence opens the door to opportunity."),
 
     ("s02", card("s02", """
 <div class='tag'>The problem</div>

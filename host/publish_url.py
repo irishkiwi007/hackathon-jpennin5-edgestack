@@ -68,7 +68,7 @@ p{{color:#8b98a9;margin-top:14px}}a{{color:#60a5fa}}</style>
 <p>Connecting you to the live dashboard&hellip;</p>
 <p><a href="{url}">continue</a> &middot;
 <a href="https://github.com/{REPO}">repository</a></p>
-<p style="font-size:13px">Every rule survived an attempt to kill it.</p>
+<p style="font-size:13px">Evidence opens the door to opportunity.</p>
 </div></body></html>"""
 
 

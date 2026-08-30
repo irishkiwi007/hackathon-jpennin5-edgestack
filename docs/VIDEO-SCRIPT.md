@@ -6,8 +6,8 @@ three screens max. Record screen + voice, no fancy editing needed.
 ## Screen 1 — the README hero (0:00-0:50)
 > "Ask an LLM for a trading strategy and it gives you one — confident, plausible, untested.
 > I built EdgeStack to answer the question nobody makes the agent answer: what evidence does
-> a trading rule need before it deserves to exist? Every rule in this agent survived an
-> attempt to kill it: thirty-three years of data, surrogate tests, two validation windows
+> a trading rule need before it deserves to exist? Evidence opens the door to
+> opportunity: thirty-three years of data, surrogate tests, two validation windows
 > where every parameter tuning FAILED and was thrown away, and three backtest engines that
 > had to agree — including my own Rust engine and QuantConnect."
 

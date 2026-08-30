@@ -189,6 +189,15 @@ Repo updates made: qc_research/README.md results section; README research list l
 rebuilt (video/build_slides.py). Committed and pushed.
 
 ## STATE: SUBMISSION-READY (all agent-side work COMPLETE incl. QC verdict, pushed)
+- BRAND SLOGAN (2026-08-30, user decision): **"Evidence opens the door to
+  opportunity."** replaced "every rule survived an attempt to kill it" in every
+  slogan position: README, docs/SUBMISSION.md short desc, SOCIAL.md post 1,
+  SLIDES.md, VIDEO-SCRIPT.md, slide 1 (slides.pdf rebuilt), video s01 title+narration
+  (demo.mp4 rebuilt), dashboard tagline (process bounced, verified live), gh-pages
+  redirect page (force-republished). Kill-testing language stays as ARGUMENT in body
+  copy. Cover = user-supplied AI art (matrix storm / AI door / golden valley) with
+  typography + four gate callouts composited by video/build_cover.py; art snapshot
+  force-added at video/raw/cover_art.png.
 - Public repo: https://github.com/jpennin5/edgestack (pinned on the user's profile)
 - Stable live URL: https://jpennin5.github.io/edgestack/ (gh-pages redirect; tunnel
   watcher auto-republishes on every quick-tunnel rotation via GitHub Contents API;
