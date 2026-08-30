@@ -1,8 +1,9 @@
-"""Build the demo video end-to-end: HTML cards -> Edge screenshots -> SAPI narration ->
+"""Build the demo video end-to-end: HTML cards -> Edge screenshots -> neural narration ->
 ffmpeg assembly. Output: docs/demo.mp4 (1080p).
 
 Every frame is rendered by Edge from HTML so the whole video shares the dashboard's visual
-language. Narration is Windows SAPI (synthetic; the trader can re-record over the same cut).
+language. Narration is Microsoft's en-US-AndrewNeural via edge-tts (free, no key; SAPI Zira
+is the offline fallback). The trader can still re-record a human voice over the same cut.
 """
 import os
 import subprocess
@@ -168,7 +169,11 @@ An agent that <span class='acc'>explains every refusal</span>.</h2>
 ]
 
 # ---------------------------------------------------------------- narration
-PS = r"""
+# Neural narration via Microsoft's Edge Read Aloud voices (edge-tts package): free,
+# no API key, and far more natural than SAPI. AndrewNeural is the Copilot voice.
+# SAPI Zira remains the offline fallback if the neural service is unreachable.
+VOICE = "en-US-AndrewNeural"
+SAPI_PS = r"""
 Add-Type -AssemblyName System.Speech
 $s = New-Object System.Speech.Synthesis.SpeechSynthesizer
 $s.SelectVoice('Microsoft Zira Desktop')
@@ -177,15 +182,30 @@ $s.SetOutputToWaveFile('{wav}')
 $s.Speak('{text}')
 $s.Dispose()
 """
-for name, png, text in SEGMENTS:
+
+
+def narrate(name, text):
+    mp3 = os.path.join(WAV, name + ".mp3")
+    r = subprocess.run([sys.executable, "-m", "edge_tts", "--voice", VOICE,
+                        "--rate", "-4%", "--text", text, "--write-media", mp3],
+                       capture_output=True, timeout=180)
+    if r.returncode == 0 and os.path.exists(mp3) and os.path.getsize(mp3) > 5000:
+        return mp3
     wav = os.path.join(WAV, name + ".wav")
-    script = PS.format(wav=wav, text=text.replace("'", "''"))
+    script = SAPI_PS.format(wav=wav, text=text.replace("'", "''"))
     subprocess.run(["powershell", "-NoProfile", "-Command", script],
                    capture_output=True, timeout=180)
-    if not os.path.exists(wav):
-        print("TTS FAILED for", name)
-        sys.exit(1)
-print("narration synthesized")
+    if os.path.exists(wav):
+        print("  (neural failed for", name, "- SAPI fallback)")
+        return wav
+    print("TTS FAILED for", name)
+    sys.exit(1)
+
+
+AUDIO = {}
+for name, png, text in SEGMENTS:
+    AUDIO[name] = narrate(name, text)
+print("narration synthesized:", VOICE)
 
 # ---------------------------------------------------------------- assembly
 def dur(path):
@@ -196,10 +216,10 @@ def dur(path):
 
 concat = []
 for name, png, _text in SEGMENTS:
-    d = dur(os.path.join(WAV, name + ".wav")) + 0.9
+    d = dur(AUDIO[name]) + 0.9
     seg = os.path.join(SEG, name + ".mp4")
     subprocess.run([FF, "-y", "-loop", "1", "-i", png,
-                    "-i", os.path.join(WAV, name + ".wav"),
+                    "-i", AUDIO[name],
                     "-t", f"{d:.2f}",
                     "-vf", f"fade=t=in:st=0:d=0.35,fade=t=out:st={d - 0.4:.2f}:d=0.4,"
                            "scale=1920:1080,format=yuv420p",
