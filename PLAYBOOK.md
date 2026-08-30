@@ -62,7 +62,7 @@ Work through the steps IN ORDER, checking boxes here (edit this file) as they co
   the remote.
 - End commit messages with the Claude co-author line per repo convention.
 
-### [ ] STEP 4 — Review MANY contestant entries, then polish to match/beat
+### [x] STEP 4 — Review MANY contestant entries, then polish to match/beat
 - Goal (user): "present as extremely polished so that we have a chance to win."
 - Sources: lablab.ai event page + submissions gallery; GitHub search for hackathon repos.
   Known competitor repos from earlier research (HACKATHON.md): matthewchung74/alpaca-gatekeeper
@@ -76,7 +76,7 @@ Work through the steps IN ORDER, checking boxes here (edit this file) as they co
   demo platform, live application URL, Alpaca paper account ID (judges pull P&L),
   one-page write-up (AI logic, risk gates, Alpaca infrastructure).
 
-### [ ] STEP 5 — Judge-lens review, then adjust
+### [x] STEP 5 — Judge-lens review, then adjust
 - Re-read ALL contest rules (lablab.ai event page — it is edited mid-event, re-fetch) and
   relevant social media (Alpaca X/Twitter posts, lablab posts) to infer what a winner
   looks like to THEM.
@@ -126,3 +126,27 @@ Work through the steps IN ORDER, checking boxes here (edit this file) as they co
 - STEP 3 DONE: submission README written (EdgeStack branding, evidence tables, architecture,
   compliance map); first commit cea4f03, 179 files, .env excluded. PUSH PENDING: needs the
   user's GitHub remote (`git remote add origin <url> && git push -u origin master`).
+- STEP 4 DONE: field survey — 79 event repos on GitHub; "AI proposes / code disposes" is
+  the META of the field (Gatekeeper, Finly, Refusal Rails, OWL, Uncharted, APEX all lead
+  with it; several have polished dashboards/domains; APEX has a judging-criteria map and is
+  the closest substantive competitor: validated equity engine + options overlay + OOS gates).
+  Repositioned EdgeStack around the RESEARCH story (33y, surrogates, triple-engine,
+  graveyard). Added judging map + docs/WRITEUP.md. Registered lablab teams (agenttrade-ai,
+  agentalpha, aliens) had not submitted yet at review time.
+- STEP 5 DONE: lablab's How-to-Win guidance = clarity over production value, <=3-screen
+  demo, one problem, working demo wins. Added problem framing + business value to README;
+  wrote docs/VIDEO-SCRIPT.md, docs/SOCIAL.md (ready-to-post thread), docs/SLIDES.md.
+  Commits: cea4f03, 89b74e2, 07b19aa.
+
+## REMAINING USER ACTIONS (the agent cannot do these)
+1. git remote add origin <their-github-repo-url> && git push -u origin master
+2. Rotate paper API keys in the Alpaca dashboard, update .env, restart supervisors
+   (host/run.py processes pick up new env on restart).
+3. Record the ~4-min video from docs/VIDEO-SCRIPT.md; export slides from docs/SLIDES.md;
+   make a cover image (spec: dark bg #0b0f14, "EdgeStack" + tagline "every rule survived
+   an attempt to kill it", dashboard screenshot as backdrop).
+4. Post the docs/SOCIAL.md thread (Social Engagement is judged) with the live URL + repo.
+5. Submit on lablab: title, short/long description (source from README hero + WRITEUP),
+   tags, cover image, video, slides, repo URL, live URL (re-read journal/live_url.txt FIRST
+   — quick-tunnel URL changes on restart), paper account ID PA3ZCDDOPR2N.
+6. Optional hardening: free Cloudflare account -> named tunnel for a stable URL.
