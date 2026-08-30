@@ -1,6 +1,11 @@
 # EdgeStack
 
-**Every rule in this agent survived an attempt to kill it.**
+**The problem: LLM trading agents lose money confidently, because their rules come from
+vibes.** Ask a model for a trading strategy and it will give you one — plausible,
+articulate, and untested. The question nobody makes the agent answer is: *what evidence
+does a rule need before it deserves to exist?*
+
+**EdgeStack's answer: every rule in this agent survived an attempt to kill it.**
 
 Thirty-three years of data. Surrogate nulls. Two disjoint validation windows where every
 parameter tuning *failed* and was rejected. Three independent backtest engines that had to
@@ -97,6 +102,13 @@ bounce), leveraged-ETF decay shorting (drag is real, drift swamps it), five macr
 (four contradicted out-of-sample), and our own first options design (negative expectancy
 from quoting at the worst fill — found, measured, fixed). The negative results are load-
 bearing: they are why the surviving rules can be trusted.
+
+## Who this is for
+
+Retail systematic traders who want agent autonomy with institutional discipline. The
+pattern generalizes beyond trading: any domain where LLM confidence outruns LLM
+correctness needs exactly this shape — proposals from the model, existence decided by
+evidence-calibrated gates, and an audit trail that explains every refusal.
 
 ## Honest limits
 
