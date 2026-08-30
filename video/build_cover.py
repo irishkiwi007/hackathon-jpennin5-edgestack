@@ -54,12 +54,29 @@ cov_x, cov_y = sx(ts[0]), sy(ts[1])
 
 SVG = f"""
 <svg viewBox='0 0 {W} {H}' xmlns='http://www.w3.org/2000/svg' font-family='Segoe UI,system-ui,sans-serif'>
+  <defs>
+    <linearGradient id='af' x1='0' y1='0' x2='0' y2='1'>
+      <stop offset='0' stop-color='{AMBER}' stop-opacity='.04'/>
+      <stop offset='.45' stop-color='{AMBER}' stop-opacity='.30'/>
+      <stop offset='1' stop-color='#92400e' stop-opacity='.60'/>
+    </linearGradient>
+    <linearGradient id='bf' x1='0' y1='0' x2='0' y2='1'>
+      <stop offset='0' stop-color='{BLUE}' stop-opacity='.06'/>
+      <stop offset='1' stop-color='{BLUE}' stop-opacity='.44'/>
+    </linearGradient>
+    <filter id='ga' x='-30%' y='-30%' width='160%' height='160%'>
+      <feDropShadow dx='0' dy='0' stdDeviation='8' flood-color='{AMBER}' flood-opacity='.50'/>
+    </filter>
+    <filter id='gb' x='-30%' y='-30%' width='160%' height='160%'>
+      <feDropShadow dx='0' dy='0' stdDeviation='8' flood-color='{BLUE}' flood-opacity='.60'/>
+    </filter>
+  </defs>
   {grid_rows}{grid_cols}
-  <path d='{path(2, close=True)}' fill='{AMBER}' fill-opacity='.18'/>
-  <path d='{path(1, close=True)}' fill='{BLUE}' fill-opacity='.24'/>
-  <path d='{path(2)}' fill='none' stroke='{AMBER}' stroke-width='4' stroke-linejoin='round'/>
-  <path d='{path(1)}' fill='none' stroke='{BLUE}' stroke-width='4' stroke-linejoin='round'/>
-  <line x1='{PL}' y1='{sy(0):.1f}' x2='{W-PR}' y2='{sy(0):.1f}' stroke='#e5e7eb' stroke-width='1.5' opacity='.65'/>
+  <path d='{path(2, close=True)}' fill='url(#af)'/>
+  <path d='{path(1, close=True)}' fill='url(#bf)'/>
+  <path d='{path(2)}' fill='none' stroke='{AMBER}' stroke-width='4' stroke-linejoin='round' filter='url(#ga)'/>
+  <path d='{path(1)}' fill='none' stroke='{BLUE}' stroke-width='4.5' stroke-linejoin='round' filter='url(#gb)'/>
+  <line x1='{PL}' y1='{sy(0):.1f}' x2='{W-PR}' y2='{sy(0):.1f}' stroke='#e5e7eb' stroke-width='1.5' opacity='.8'/>
 
   <circle cx='{gfc_x:.1f}' cy='{gfc_y:.1f}' r='7' fill='{AMBER}' stroke='#121826' stroke-width='2'/>
   <text x='{gfc_x+16:.1f}' y='{gfc_y+2:.1f}' fill='#e5e7eb' font-size='19' font-weight='700'>buy &amp; hold {META['dd_bh']:.0f}%</text>
@@ -72,11 +89,13 @@ SVG = f"""
 
 HTML = f"""<!doctype html><html><head><meta charset='utf-8'><style>
 *{{box-sizing:border-box;margin:0}}
-body{{width:1920px;height:1080px;background:#0b0f14;color:#e5e7eb;overflow:hidden;
+body{{width:1920px;height:1080px;background:#080c13;color:#e5e7eb;overflow:hidden;
 font:16px/1.5 'Segoe UI',system-ui,sans-serif;position:relative}}
 body::before{{content:'';position:absolute;inset:0;
-background:radial-gradient(900px 640px at 74% 30%,rgba(59,130,246,.16),transparent 65%),
-radial-gradient(700px 520px at 6% 92%,rgba(248,113,113,.07),transparent 60%)}}
+background:radial-gradient(1100px 780px at 72% 26%,rgba(59,130,246,.22),transparent 62%),
+radial-gradient(900px 640px at 28% 106%,rgba(217,119,6,.10),transparent 60%),
+radial-gradient(760px 560px at 10% 6%,rgba(248,113,113,.08),transparent 60%),
+radial-gradient(1700px 1250px at 50% 46%,transparent 52%,rgba(0,0,0,.58) 100%)}}
 body::after{{content:'';position:absolute;inset:0;
 background:linear-gradient(#ffffff08 1px,transparent 1px),
 linear-gradient(90deg,#ffffff08 1px,transparent 1px);background-size:64px 64px;
@@ -88,10 +107,11 @@ mask-image:radial-gradient(1200px 900px at 60% 40%,#000,transparent 85%)}}
 font-size:14px;color:#8b98a9}}
 .kicker{{color:#8b98a9;letter-spacing:4px;font-size:16px;text-transform:uppercase;
 margin-bottom:10px}}
-.wordmark{{font-size:136px;font-weight:800;line-height:1.02;letter-spacing:-2px}}
-.wordmark .acc{{color:#60a5fa}}
-.headline{{font-size:54px;font-weight:700;line-height:1.16;margin-top:14px}}
-.headline .bad{{color:#f87171}}
+.wordmark{{font-size:150px;font-weight:800;line-height:1.0;letter-spacing:-3px;
+text-shadow:0 12px 60px rgba(0,0,0,.6)}}
+.wordmark .acc{{color:#60a5fa;text-shadow:0 0 46px rgba(96,165,250,.45)}}
+.headline{{font-size:54px;font-weight:700;line-height:1.16;margin-top:16px}}
+.headline .bad{{color:#f87171;text-shadow:0 0 30px rgba(248,113,113,.5)}}
 .sub{{font-size:23px;color:#8b98a9;line-height:1.5;margin-top:18px;max-width:700px}}
 .pills{{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:44px;max-width:700px}}
 .pill{{background:#121826;border:1px solid #1f2937;border-radius:14px;padding:14px 18px}}
@@ -112,7 +132,7 @@ vertical-align:-1px}}
 .journal{{width:640px;margin-top:36px;background:#0d1420;
 border:1px solid #1f2937;border-left:4px solid #f87171;border-radius:14px;
 padding:16px 20px;font-family:Consolas,monospace;font-size:15.5px;line-height:1.55;
-box-shadow:0 24px 60px rgba(0,0,0,.55)}}
+box-shadow:0 24px 60px rgba(0,0,0,.55),0 0 46px rgba(248,113,113,.10)}}
 .journal .jh{{display:flex;justify-content:space-between;align-items:center;
 margin-bottom:8px;font-family:'Segoe UI',system-ui,sans-serif}}
 .journal .jt{{color:#8b98a9;font-size:13px;letter-spacing:1px;text-transform:uppercase}}
@@ -156,7 +176,7 @@ border-radius:99px;padding:3px 14px;font-size:13px;font-weight:700;letter-spacin
     <div class='chart'>
       <div class='chead'>
         <div><div class='ctitle'>The losses it refused to take</div>
-          <div class='csub'>drawdown from peak \u00b7 SPY record 1994\u20132026 \u00b7 research engine, costs included</div></div>
+          <div class='csub'>drawdown from peak \u00b7 SPY record 1994\u20132026 \u00b7 research engine, costs included. Every pixel is real — no renders.</div></div>
         <div class='legend'><span><span class='sw' style='background:{BLUE}'></span>EdgeStack</span>
           <span><span class='sw' style='background:{AMBER}'></span>SPY buy &amp; hold</span></div>
       </div>
