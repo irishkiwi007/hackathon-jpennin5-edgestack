@@ -13,7 +13,7 @@ agree. A documented graveyard of ideas that didn't make it — Elliott waves, Fi
 levels, five macro overlays, and our own first options design. What remains is small,
 gated, and explains every refusal.
 
-**Live dashboard:** see `journal/live_url.txt` (quick tunnel) · **Paper account:**
+**Live dashboard:** [https://jpennin5.github.io/edgestack/](https://jpennin5.github.io/edgestack/) · **Paper account:**
 `PA3ZCDDOPR2N` · Built for the [lablab.ai × Alpaca AI Trading Agents Hackathon](https://lablab.ai/ai-hackathons/alpaca-ai-trading-agents-hackathon)
 on **Alpaca's MCP Server v2**.
 
@@ -137,5 +137,5 @@ evidence-calibrated gates, and an audit trail that explains every refusal.
 | **Uses Alpaca MCP server** | `agent/mcp_gateway.py` → `broker.py` routing, journaled |
 | Options incorporated | bull put spreads via MLeg (≤4 legs, all shorts covered) |
 | Fresh $100k paper account | `PA3ZCDDOPR2N` |
-| Live application URL | dashboard on :8787 (tunnel in `host/run.py tunnel`) |
+| Live application URL | [https://jpennin5.github.io/edgestack/](https://jpennin5.github.io/edgestack/) — stable redirect, auto-updated on every tunnel rotation |
 | Write-up / video / deck | generated from the decision journal |

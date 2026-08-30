@@ -1,7 +1,7 @@
 # EdgeStack — one-page write-up
 
 **Team:** EdgeStack (solo) · **Paper account:** `PA3ZCDDOPR2N` · **Repo:** this one ·
-**Live URL:** `journal/live_url.txt`
+**Live URL:** https://jpennin5.github.io/edgestack/
 
 ## The idea
 

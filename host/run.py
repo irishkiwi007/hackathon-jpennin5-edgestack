@@ -22,6 +22,7 @@ import sys
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
 ROOT = os.path.dirname(HERE)
 JOURNAL = os.path.join(ROOT, "journal")
 os.makedirs(JOURNAL, exist_ok=True)
@@ -95,6 +96,13 @@ def _watch_tunnel(proc, log_path, log, start_offset=0):
                               encoding="utf-8") as fh:
                         fh.write(url + "\n")
                     log("tunnel URL published: " + url)
+                    try:
+                        import publish_url as _pub
+                        rc_pub = _pub.publish()
+                        log(f"stable-page publish rc={rc_pub} "
+                            "(https://jpennin5.github.io/edgestack/)")
+                    except Exception as exc:           # noqa: BLE001
+                        log(f"stable-page publish failed: {exc}")
                 elif time.time() > url_deadline:
                     log("no URL within 120s; recycling cloudflared")
                     proc.kill()
@@ -106,7 +114,7 @@ def _watch_tunnel(proc, log_path, log, start_offset=0):
         time.sleep(60)
         ok = False
         try:
-            req = urllib.request.Request(url, method="HEAD")
+            req = urllib.request.Request(url, method="GET")
             with urllib.request.urlopen(req, timeout=20) as resp:
                 ok = resp.status < 500
         except Exception:                              # noqa: BLE001

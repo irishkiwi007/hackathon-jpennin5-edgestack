@@ -237,6 +237,11 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(str(exc).encode())
 
+    def do_HEAD(self):                                 # noqa: N802 — probes use HEAD
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.end_headers()
+
     def log_message(self, fmt, *args):                 # quiet
         pass
 

@@ -151,6 +151,7 @@ Work through the steps IN ORDER, checking boxes here (edit this file) as they co
    an attempt to kill it", dashboard screenshot as backdrop).
 4. Post the docs/SOCIAL.md thread (Social Engagement is judged) with the live URL + repo.
 5. Submit on lablab: title, short/long description (source from README hero + WRITEUP),
-   tags, cover image, video, slides, repo URL, live URL (re-read journal/live_url.txt FIRST
-   — quick-tunnel URL changes on restart), paper account ID PA3ZCDDOPR2N.
-6. Optional hardening: free Cloudflare account -> named tunnel for a stable URL.
+   tags, cover image, video, slides, repo URL, live URL: https://jpennin5.github.io/edgestack/ (STABLE, auto-updated), paper account ID PA3ZCDDOPR2N.
+6. [SOLVED] Stable URL = GitHub Pages redirect (https://jpennin5.github.io/edgestack/), auto-republished by
+   the tunnel watcher via the GitHub Contents API on every rotation. No Cloudflare
+   credentials existed on this machine; none needed.
