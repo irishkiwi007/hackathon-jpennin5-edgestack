@@ -155,3 +155,8 @@ Work through the steps IN ORDER, checking boxes here (edit this file) as they co
 6. [SOLVED] Stable URL = GitHub Pages redirect (https://jpennin5.github.io/edgestack/), auto-republished by
    the tunnel watcher via the GitHub Contents API on every rotation. No Cloudflare
    credentials existed on this machine; none needed.
+- PRE-MONDAY REHEARSAL (agent/rehearsal.py): 19/19 checks passed 2026-08-30. Proved the
+  two never-exercised paths with real submit+cancel orders: MOC (cls) equity via MCP and
+  MLeg credit spread via MCP (both accepted->canceled). Market clock confirms next open
+  Mon 08-31 09:30. Friction gate objecting on weekend quotes is correct (stale Friday
+  spreads); it re-evaluates on live Monday quotes. Re-runnable any time.
