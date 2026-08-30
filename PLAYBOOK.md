@@ -160,3 +160,64 @@ Work through the steps IN ORDER, checking boxes here (edit this file) as they co
   MLeg credit spread via MCP (both accepted->canceled). Market clock confirms next open
   Mon 08-31 09:30. Friction gate objecting on weekend quotes is correct (stale Friday
   spreads); it re-evaluates on live Monday quotes. Re-runnable any time.
+
+
+================================================================================
+# COMPACTION CHECKPOINT — 2026-08-30 (written immediately before a compaction)
+================================================================================
+
+## IMMEDIATE NEXT TASK (user is about to paste this)
+The user is uploading **QuantConnect backtest results** for qc_research/edge_stack.py
+(the equity stack: overnight SPY core gated by 12m trend + credit canary, capitulation
+sleeve 0.5x across 7 ETFs; USE_CREDIT_CANARY=True default). Evaluate them against:
+
+| check | expectation | if it fails |
+|---|---|---|
+| ranking | buy&hold < core-only < core+sleeve on Sharpe | sleeve below core = pre-registered red flag in README — investigate, do not excuse |
+| level | Sharpe ~0.6-0.9 (research 0.85 at 1bp; QC fills/slippage drag it) | far off either way = investigate |
+| max DD | ~-20 to -30% vs -59% buy&hold | deep DD = gate not engaging |
+| orders | ~2 core orders/session; 2010-2026 => ~8k+ orders, may brush QC free-tier caps | if it died/hung: shorten to 2018-2026, not a strategy fault |
+| credit canary | comparable/better vs trend-only ON THE OVERNIGHT CORE (first-ever test of that combo) | if it hurts overnight specifically = genuine finding, record it |
+
+QC is the ONLY independent test of the overnight core (TrustyRustyEngine can't express
+close->open; fills at next open only). If numbers hold: add a third-engine confirmation
+line to README + slide 6 (rebuild via `python video/build_slides.py`), commit, push.
+Research reference: core+sleeve CAGR 9.72%, vol 9.07%, Sharpe 0.85, DD -26.6% (1994-2026,
+1bp costs); core-only 0.76; buy&hold 0.32. Known QC deltas: 15:45 signals w/ 0.894 volume
+completion + floor 1.5 (vs research exact-close 1.4) -> slightly fewer sleeve events.
+
+## STATE: SUBMISSION-READY (all agent-side work COMPLETE and pushed, HEAD a0a0246+)
+- Public repo: https://github.com/jpennin5/edgestack (pinned on the user's profile)
+- Stable live URL: https://jpennin5.github.io/edgestack/ (gh-pages redirect; tunnel
+  watcher auto-republishes on every quick-tunnel rotation via GitHub Contents API;
+  probe bug fixed — dashboard implements do_HEAD, watcher probes with GET)
+- Video: docs/demo.mp4 (3:35, en-US-AndrewNeural via edge-tts, rebuild: video/build.py)
+- Slides: docs/slides.pdf (10 slides; slide 9 = business/roadmap/team; limits merged
+  into close; rebuild: video/build_slides.py) + docs/cover.png (lablab cover field)
+- Form copy paste-ready: docs/SUBMISSION.md (title/short/long/tags + all fields)
+- One-pager: docs/WRITEUP.md; social thread: docs/SOCIAL.md (URLs filled)
+- Rubric-review pass done (commit 13cf750): business value + roadmap + team added
+  everywhere; "satellite" options framing replaced with "bounded by evidence" language
+- REHEARSAL 19/19 PASSED (agent/rehearsal.py): real submit+cancel proved MOC(cls) equity
+  AND MLeg spread through MCP; clock confirms next open Mon 08-31 09:30; friction-gate
+  objection on weekend quotes is CORRECT (stale Friday spreads). Re-runnable anytime.
+- Hosting: 4 supervisors (mcp/scheduler/dashboard/tunnel) via host/run.py; Startup-folder
+  persistence (EdgeStack.vbs); scheduler passes 09:31 exit / 15:45 entry; after each entry
+  pass the journal AUTO-COMMITS+pushes (host/commit_journal.py) => in-window commit history
+- GitHub auth: token read in-memory from Windows Credential Manager target
+  "git:https://github.com" via CredRead (PS Add-Type or ctypes in host/publish_url.py);
+  push with `git -c http.extraheader="AUTHORIZATION: basic <b64 x-access-token:TOK>"`.
+  NEVER print the token.
+- Live readings at checkpoint: equity gate CLOSED (trend UP +19.0%, HYG 79.74 vs SMA100
+  79.85 — 0.11 from reopening); TLT regime CALM; account PA3ZCDDOPR2N $100k flat.
+
+## USER'S REMAINING ACTIONS (unchanged)
+1. Rotate Alpaca paper keys -> update .env -> restart supervisors (keys were pasted in
+   chat long ago; remind once if going live, don't nag)
+2. Post docs/SOCIAL.md thread (Social Engagement is judged)
+3. Fill lablab form from docs/SUBMISSION.md (all fields pre-drafted)
+
+## FIELD INTEL (for any further judge-lens work)
+"AI proposes / code disposes" is the meta of the whole field (Gatekeeper, Finly, Refusal
+Rails, OWL, Uncharted, APEX). EdgeStack's differentiator = the research program (33y,
+surrogate nulls, 3 engines, public graveyard). Do NOT lead with determinism framing.
