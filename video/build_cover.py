@@ -40,6 +40,19 @@ text-shadow:0 2px 8px rgba(0,0,0,.95),0 0 22px rgba(0,0,0,.8)}}
 letter-spacing:1.8px;text-transform:uppercase;color:#b8c6de;font-weight:600;
 text-shadow:0 2px 8px rgba(0,0,0,.95),0 0 20px rgba(0,0,0,.85)}}
 .links .dot{{margin:0 8px;color:#6b7ea3}}
+.gate{{position:absolute;z-index:2;text-transform:uppercase}}
+.gate .nm{{font-size:15px;font-weight:700;letter-spacing:3px;color:#ffd98f;
+text-shadow:0 2px 6px rgba(0,0,0,.95),0 0 18px rgba(255,200,120,.55)}}
+.gate .ds{{font-size:11.5px;letter-spacing:1.6px;color:#cfdaec;margin-top:3px;
+text-shadow:0 2px 6px rgba(0,0,0,.95)}}
+.gate.l{{text-align:right}}
+.gate .tick{{position:absolute;top:9px;width:30px;height:2px;
+background:linear-gradient(90deg,rgba(255,217,143,0),#ffd98f);
+box-shadow:0 0 10px rgba(255,200,120,.7)}}
+.gate.l .tick{{right:-42px}}
+.gate.r .tick{{left:-42px;transform:scaleX(-1)}}
+.gate .tick::after{{content:'';position:absolute;right:-3px;top:-2.5px;width:7px;height:7px;
+border-radius:50%;background:#ffd98f;box-shadow:0 0 12px rgba(255,210,130,.9)}}
 </style></head><body>
 <img class='bg' src='data:image/png;base64,{b64}'/>
 <div class='scrim'></div>
@@ -48,6 +61,18 @@ text-shadow:0 2px 8px rgba(0,0,0,.95),0 0 20px rgba(0,0,0,.85)}}
   <div class='chips'>Alpaca MCP Server v2 <span>\u25cf</span> Paper only <span>\u25cf</span>
     33 years of evidence <span>\u25cf</span> 3 engines agree</div>
 </div>
+<div class='gate l' style='right:1332px;top:492px'>
+  <div class='nm'>Trend Gate</div><div class='ds'>12-month trend must be up</div>
+  <div class='tick'></div></div>
+<div class='gate l' style='right:1332px;top:614px'>
+  <div class='nm'>Credit Canary</div><div class='ds'>HYG above its 100-day average</div>
+  <div class='tick'></div></div>
+<div class='gate r' style='left:1338px;top:452px'>
+  <div class='nm'>Volume Ceiling</div><div class='ds'>panic volume, not real news</div>
+  <div class='tick'></div></div>
+<div class='gate r' style='left:1338px;top:580px'>
+  <div class='nm'>Calm Regime</div><div class='ds'>bond volatility at ease</div>
+  <div class='tick'></div></div>
 <div class='links'>github.com/jpennin5/edgestack</div>
 </body></html>"""
 
