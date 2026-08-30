@@ -4,3 +4,7 @@ __pycache__/
 *.pyc
 journal/*.log
 host/bin/
+video/raw/
+video/cards/
+video/wav/
+video/seg/

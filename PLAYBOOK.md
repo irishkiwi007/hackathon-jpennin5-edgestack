@@ -142,7 +142,9 @@ Work through the steps IN ORDER, checking boxes here (edit this file) as they co
 1. [DONE by agent] public repo https://github.com/jpennin5/edgestack created and pushed
 2. Rotate paper API keys in the Alpaca dashboard, update .env, restart supervisors
    (host/run.py processes pick up new env on restart).
-3. Record the ~4-min video from docs/VIDEO-SCRIPT.md; export slides from docs/SLIDES.md;
+3. [VIDEO PRODUCED by agent] docs/demo.mp4 (3:44, 1080p, 10 segments, synthetic narration,
+   real dashboard/GitHub captures; rebuild with `python video/build.py`). OPTIONAL: re-record
+   human voice over the same cut. Still yours: export slides from docs/SLIDES.md;
    make a cover image (spec: dark bg #0b0f14, "EdgeStack" + tagline "every rule survived
    an attempt to kill it", dashboard screenshot as backdrop).
 4. Post the docs/SOCIAL.md thread (Social Engagement is judged) with the live URL + repo.
