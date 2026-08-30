@@ -162,10 +162,14 @@ An agent that <span class='acc'>explains every refusal</span>.</h2>
 <p style='margin-top:44px'>github.com/jpennin5/edgestack &middot; Alpaca paper
 <span class='mono'>PA3ZCDDOPR2N</span> &middot; built on Alpaca's MCP Server v2</p>
 <h1 style='font-size:64px;margin-top:40px'>Edge<b>Stack</b></h1>"""),
-     "The P and L window is five sessions, and these edges are risk adjusted. I won't "
-     "pretend otherwise. What EdgeStack demonstrates is the discipline that survives any "
-     "market. Rules that earned their existence. An engine that provably implements them. "
-     "And an agent that explains every trade — and every refusal. EdgeStack."),
+     "The P and L window is five sessions, and these edges are risk adjusted — I won't "
+     "pretend otherwise. I built EdgeStack solo, in seven days, for a real user: the "
+     "retail systematic trader who wants agent autonomy with institutional discipline. "
+     "Next, the earnings premium we already measured enters the same kill test pipeline, "
+     "and real capital waits behind pre registered graduation criteria. What EdgeStack "
+     "demonstrates is the discipline that survives any market. Rules that earned their "
+     "existence. An engine that provably implements them. And an agent that explains "
+     "every trade — and every refusal. EdgeStack."),
 ]
 
 # ---------------------------------------------------------------- narration

@@ -110,14 +110,24 @@ pattern generalizes beyond trading: any domain where LLM confidence outruns LLM
 correctness needs exactly this shape — proposals from the model, existence decided by
 evidence-calibrated gates, and an audit trail that explains every refusal.
 
+## Roadmap
+
+1. **More edges through the same kill-test pipeline** — the earnings implied-move premium
+   (measured at ~1.33× realized, t=3.95) is researched and next in line for gating.
+2. **Graduation criteria for real capital** — pre-registered: 60 live sessions, realized
+   Sharpe within 1σ of backtest, zero gate violations.
+3. **The framework generalizes** — evidence-gated agents for any domain where LLM
+   confidence outruns LLM correctness.
+
 ## Honest limits
 
 - The equity edges are **risk-adjusted** edges; a 5-session P&L window is mostly noise and
   we do not pretend otherwise.
 - Signals are rare by design (gates refuse most sessions). Flat is a position.
 - Option-level expectancy could not be established from free historical data (no quote
-  history exists on this tier); the options component is therefore sized as a satellite,
-  priced from live quotes only.
+  history exists on this tier). The options book therefore trades the same validated
+  capitulation signal, priced from live quotes only, with position sizing capped by the
+  measured friction — integral to the strategy, deliberately bounded by the evidence.
 
 ## Judging-criteria map
 

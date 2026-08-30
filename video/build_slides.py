@@ -128,8 +128,8 @@ AND the credit canary</td><td>Sharpe <b class='ok'>0.89</b> overnight vs
 (1.4–2.5×), 7 ETFs, 3-session hold</td><td><b class='ok'>+1.42%/event</b> · 67.6% win ·
 t=4.27 · 136 events / 33y · surrogate-tested</td></tr>
 <tr><td><b>Options component</b></td><td>Defined-risk bull put spreads behind 14
-deterministic gates</td><td>direction validated in the underlying; sized as a satellite —
-we measured why (spreads eat retail edge)</td></tr>
+deterministic gates</td><td>trades the same validated signal; sizing capped by
+<b>measured</b> friction — bounded by evidence, not vibes</td></tr>
 </table>
 {FOOT}</div>""")
 
@@ -194,28 +194,35 @@ information, so the agent refuses. <b>Refusal is a decision with evidence attach
 {FOOT}</div>""")
 
 SLIDES.append(f"""<div class='slide'>{CHIPS}
-<div class='kicker'>Honest limits</div>
-<h2>What we will not pretend.</h2>
-<ul style='margin-top:24px'>
-<li>The equity edges are <b>risk-adjusted</b> edges. A 5-session P&amp;L window is mostly
-noise, for every entrant — we say so out loud.</li>
-<li>Signals are rare by design. The gates refuse most sessions. <b>Flat is a
-position.</b></li>
-<li>Option-level expectancy could not be established from free historical data (no quote
-history exists on this tier) — so the options book is a satellite, priced from live quotes
-only, and the write-up explains exactly why.</li>
-</ul>
-<p class='sub' style='margin-top:auto'>An entry that hides its limits is asking judges to
-find them. We measured ours first.</p>{FOOT}</div>""")
+<div class='kicker'>Who pays &middot; what's next</div>
+<h2>A real user, an honest model, a pre-registered path to real capital.</h2>
+<div class='two' style='margin-top:26px'>
+<div>
+<ul style='margin-top:0'>
+<li><b>User</b> — the retail systematic trader who wants agent autonomy with
+institutional discipline (the segment Alpaca's API business already monetizes)</li>
+<li><b>Model</b> — strategy-as-infrastructure on brokerage rails; the evidence pipeline,
+not another subscription chatbot</li>
+</ul></div>
+<div>
+<ul style='margin-top:0'>
+<li><b>Next edge</b> — earnings implied-move premium (measured ~1.33&times; realized,
+t=3.95) enters the same kill-test pipeline</li>
+<li><b>Real capital gate</b> — pre-registered: 60 live sessions, realized Sharpe within
+1&sigma; of backtest, zero gate violations</li>
+<li><b>Team</b> — built solo, in seven days, with an AI pair that had to show its work</li>
+</ul></div></div>{FOOT}</div>""")
 
 SLIDES.append(f"""<div class='slide'>{CHIPS}
 <div style='margin-top:1.2in'>
 <h1 style='font-size:44px'>Rules that <span class='acc'>earned their existence</span>.<br>
 An engine that <span class='acc'>provably implements them</span>.<br>
 An agent that <span class='acc'>explains every refusal</span>.</h1>
-<p class='sub' style='margin-top:30px'>github.com/jpennin5/edgestack &middot; live
-dashboard (URL in repo) &middot; Alpaca paper <span class='mono'>PA3ZCDDOPR2N</span>
-&middot; demo video: docs/demo.mp4</p></div>
+<p class='sub' style='margin-top:26px'>What we won't pretend: these are risk-adjusted
+edges, a 5-session P&amp;L window is mostly noise, and flat is a position. An entry that
+hides its limits is asking judges to find them — we measured ours first.</p>
+<p class='sub' style='margin-top:18px'>jpennin5.github.io/edgestack &middot;
+github.com/jpennin5/edgestack &middot; Alpaca paper <span class='mono'>PA3ZCDDOPR2N</span></p></div>
 <h1 style='margin-top:auto'>Edge<span class='acc'>Stack</span></h1>{FOOT}</div>""")
 
 html = ("<!doctype html><html><head><meta charset='utf-8'><style>" + CSS

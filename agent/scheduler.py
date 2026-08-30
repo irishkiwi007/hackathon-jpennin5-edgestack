@@ -68,6 +68,15 @@ def run_pass(kind: str) -> None:
             log(f"--- {kind} pass exited {res.returncode} ---")
         else:
             log(f"--- {kind} pass complete ---")
+        if kind == "entry":
+            # the audit trail commits itself: journal artifacts -> git -> GitHub
+            try:
+                r = subprocess.run([sys.executable,
+                                    os.path.join(HERE, "..", "host", "commit_journal.py")],
+                                   capture_output=True, text=True, timeout=180)
+                log(f"journal commit: {(r.stdout or r.stderr).strip()[:120]}")
+            except Exception as exc:                   # noqa: BLE001
+                log(f"journal commit failed: {exc}")
     except subprocess.TimeoutExpired:
         log(f"!! {kind} pass timed out after 900s")
     except Exception as exc:                             # noqa: BLE001

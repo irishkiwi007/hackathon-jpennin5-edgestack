@@ -54,6 +54,16 @@ market-at-open for the equity core (long SPY overnight-only — Sharpe 0.89 vs 0
 ensure-running supervisors, logon persistence, live dashboard tunneled publicly. Sessions:
 signals at 15:45 ET off a measured 89.4% volume-completion estimate; exits 09:31 ET.
 
+## Who this serves, and what's next
+
+Built solo, for a real user: the retail systematic trader who wants agent autonomy with
+institutional discipline — a segment Alpaca's own API business already monetizes, which is
+the honest revenue model here (strategy-as-infrastructure on brokerage rails, not another
+subscription chatbot). Next: the earnings implied-move premium (measured ~1.33× realized,
+t=3.95) enters the same kill-test pipeline, and real capital waits behind pre-registered
+graduation criteria — 60 live sessions, realized Sharpe within 1σ of backtest, zero gate
+violations.
+
 ## What we want judges to take away
 
 The P&L window is five sessions; our edges are risk-adjusted and fire rarely — we will not
