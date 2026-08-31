@@ -222,11 +222,17 @@ rebuilt (video/build_slides.py). Committed and pushed.
 - Live readings at checkpoint: equity gate CLOSED (trend UP +19.0%, HYG 79.74 vs SMA100
   79.85 — 0.11 from reopening); TLT regime CALM; account PA3ZCDDOPR2N $100k flat.
 
-## USER'S REMAINING ACTIONS (unchanged)
-1. Rotate Alpaca paper keys -> update .env -> restart supervisors (keys were pasted in
+## SUBMITTED (2026-08-30) + USER'S REMAINING ACTIONS
+- **SUBMISSION IS LIVE**: https://lablab.ai/ai-hackathons/alpaca-ai-trading-agents-hackathon/edgestack-ai/edgestack-evidence-gated-trading-agent
+  (title "EdgeStack: Evidence-Gated Trading Agent", track "Options Alpha Agents"; cover,
+  3:35 video, slides PDF, links, account ID all verified serving 200 on lablab's CDN).
+  Deadline Fri Sep 4 17:00; as of submission we were the FIRST published entry.
+1. Daily LinkedIn posts Days 2-5 per docs/SOCIAL.md calendar (Day 1 posted Sun Aug 30;
+   Day 2 = fill brackets from the journal AFTER Mon's 15:45 ET pass). After each post:
+   edit the lablab submission, paste the post URL into the next social_media_post_link
+   slot (slot 1 filled; 2-5 empty).
+2. Rotate Alpaca paper keys -> update .env -> restart supervisors (keys were pasted in
    chat long ago; remind once if going live, don't nag)
-2. Post docs/SOCIAL.md thread (Social Engagement is judged)
-3. Fill lablab form from docs/SUBMISSION.md (all fields pre-drafted)
 
 ## FIELD INTEL (for any further judge-lens work)
 "AI proposes / code disposes" is the meta of the whole field (Gatekeeper, Finly, Refusal
