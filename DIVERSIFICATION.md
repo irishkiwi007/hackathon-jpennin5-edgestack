@@ -142,3 +142,47 @@ drawdown (-50% vs -25%), destroying the property the stack exists for.
 **Verdict: the flat hours stay in cash. Intraday parking is structurally dead (no intraday
 drift in SPY, XLP, or gold, minus a round trip per day); gate-closed-night parking fails
 the both-windows rule in every form tried, on top of its engine-trial rejection.**
+
+---
+
+# Addendum 2 (2026-08-30) — bill parking (SGOV) with a yield filter: ADOPTED in research
+
+Same question as above but with the right asset: T-bills are rate capture, not a drift bet —
+near-zero vol, no drawdown, deterministic accrual. Per the trader's standing rule, cash parks
+in bills ONLY when the yield covers the round trip. Script: `scripts/park_sgov.py`, real
+DGS3MO yields 1994-2026, bills modeled as y/252 accrual, 1bp round trip (2bp variant shown).
+
+## The anatomy that makes it work
+
+Gate-closed time is 18.4% of sessions in **49 stretches: median 3 days, mean 31, max 405** —
+a long tail of bear-market stretches carries nearly all the parked days. One round trip per
+stretch means ~24 round trips in 33 years: the cost side is almost irrelevant (results move
+<1 bp/yr going from 1bp to 2bp costs). The breakeven for even a median 3-session stretch is
+y > 252 x 0.01% / 3 ≈ 0.84% — so **y >= 1% is the principled filter**: it self-finances the
+short stretches, and the long stretches self-finance at any yield.
+
+## Result (filter y >= 1%, 1bp rt)
+
+| | CAGR | vol | Sharpe | maxDD | train 08-17 | valid 18-26 |
+|---|---|---|---|---|---|---|
+| core only | 8.01% | 7.92% | 0.76 | -24.9% | 0.023 | 0.582 |
+| **core + bill parking** | **8.40%** | 7.92% | **0.81** | -24.9% | **0.041** | **0.634** |
+
++36 bps/yr on the full record (+14 train, +46 validation), vol and drawdown untouched,
+**helps both windows** — the first overlay to pass the discipline since the credit canary.
+Filter sensitivity: 0.5% and 1.0% are equivalent; 2.0% skips the long bear stretches that
+begin at crashing yields (GFC, covid) and forfeits most of the carry — the filter belongs at
+the cost-breakeven, not higher.
+
+The daily-churn variant (bills held intraday on gate-open days) self-filters to y >= 5.04%
+and adds 3.9 bps/yr — not worth the order surface. Stretch parking only.
+
+Honest caveats: the Sharpe lift is partly definitional (excess return measured against a
+fixed 2% hurdle while capturing floating bills); the real claim is +36 bps/yr of carry at
+unchanged risk. Bills modeled as pure accrual (SGOV NAV wiggle and settlement ignored —
+immaterial at this cost sensitivity).
+
+**Rollout: adopted in research. Live-agent implementation deliberately deferred until after
+hackathon judging (Sep 4) — the running system is frozen on the rehearsed code path. With
+the gate currently closed and bills at 3.84%, the rule would have the account parked today;
+at ~1.5 bp/week it is immaterial to the judged window.**

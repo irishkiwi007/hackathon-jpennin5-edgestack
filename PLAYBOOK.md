@@ -234,6 +234,15 @@ rebuilt (video/build_slides.py). Committed and pushed.
 2. Rotate Alpaca paper keys -> update .env -> restart supervisors (keys were pasted in
    chat long ago; remind once if going live, don't nag)
 
+## POST-SUBMISSION RESEARCH (2026-08-30 evening)
+- Parking flat hours: XLP/gold intraday + gate-closed-night variants all REJECTED
+  (scripts/park_flat.py; DIVERSIFICATION.md addendum 1 - no intraday drift anywhere).
+- Bill parking (SGOV) on gate-closed stretches with trader's yield filter (y>=1%):
+  ADOPTED in research (+36bps/yr, both windows pass; scripts/park_sgov.py;
+  DIVERSIFICATION.md addendum 2). LIVE IMPLEMENTATION DEFERRED until after Sep 4
+  judging - system frozen on rehearsed code. Implement after: scheduler buys SGOV
+  at close when gate flips shut & y>=1%, sells at close when gate reopens.
+
 ## FIELD INTEL (for any further judge-lens work)
 "AI proposes / code disposes" is the meta of the whole field (Gatekeeper, Finly, Refusal
 Rails, OWL, Uncharted, APEX). EdgeStack's differentiator = the research program (33y,
