@@ -98,3 +98,47 @@ cheap regime read and nothing in the surveyed field computes it.
    complement and pay ~18× in risk-adjusted return; or cut size so the outcome matters less.
 4. **Run the correlation regime check daily.** It is the cheapest useful signal found in this whole
    exercise, and it currently says: do not expect a hedge to hedge.
+
+---
+
+# Addendum (2026-08-30) — parking the flat hours: XLP / gold basket while the core is idle
+
+Question (from the trader): the overnight core is flat every day session, and flat overnight
+when the trend gate is closed — do we earn anything holding XLP or the gold-royalty basket
+(WPM/RGLD/FNV, as in the older strategies) through those windows? The engine trial already
+killed full-session risk-off parking (fails train; gold miners were lethal in the GFC). This
+tests the two cuts that sweep did not cover. Script: `scripts/park_flat.py`, 33y record,
+per-name round-trip costs (SPY 1bp, XLP 2bp, gold names 4bp), rule counts only if it helps
+BOTH windows (train 2008-17, validation 2018-26).
+
+## Anatomy first — the drift everywhere lives overnight
+
+| series (gross, no costs) | intraday | overnight |
+|---|---|---|
+| SPY | Sharpe **-0.07** | Sharpe **0.72** |
+| XLP | -0.04 | 0.36 |
+| gold basket WPM/RGLD/FNV | -0.24 (CAGR -8.0%) | 0.80 (CAGR +26.5%) |
+
+The intraday session carries no drift in ANY of these — the core's own founding measurement,
+reproduced in the assets we would park in. (The gold basket's huge gross overnight number
+leans on thin early-RGLD prices and survives no cost or discipline test below — recorded as
+anatomy, not as an edge.)
+
+## Verdicts — everything fails
+
+| variant (net of costs) | full-record Sharpe | train | valid | verdict |
+|---|---|---|---|---|
+| core only (reference) | 0.76 | 0.02 | 0.58 | — |
+| A. + XLP held intraday | 0.19 (DD -63%) | -0.10 | 0.35 | dead — no drift, daily costs |
+| A. + gold held intraday | -0.28 (DD -99.6%) | -0.71 | -0.09 | dead |
+| B. + XLP on gate-closed nights | 0.67 (DD -29%) | 0.41 | 0.48 | **fails validation** |
+| B. + gold on gate-closed nights | 0.72 (DD -50%) | 0.57 | 0.35 | **fails validation, doubles DD** |
+
+The B variants are the seductive ones: both improve the weak train window and give it back
+in validation — the same shape that got full-session gold parking rejected in the engine
+trial, now confirmed from the research-engine side. The gold version also doubles the max
+drawdown (-50% vs -25%), destroying the property the stack exists for.
+
+**Verdict: the flat hours stay in cash. Intraday parking is structurally dead (no intraday
+drift in SPY, XLP, or gold, minus a round trip per day); gate-closed-night parking fails
+the both-windows rule in every form tried, on top of its engine-trial rejection.**
