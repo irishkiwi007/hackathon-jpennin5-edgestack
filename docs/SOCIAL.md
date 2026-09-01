@@ -109,7 +109,7 @@ Attach: the cover with gate callouts, or a journal screenshot
 >
 > Orders and account reads route through @Alpaca's MCP Server v2, every route journaled.
 > The production engine reproduces the 33-year research record to three decimals. A
-> 22-case test suite requires the RIGHT gate to refuse in every scenario. And the
+> 24-case test suite requires the RIGHT gate to refuse in every scenario. And the
 > append-only decision journal explains every trade — and every refusal — in public.
 >
 > The LLM proposes. The evidence decides. That's the whole design.
