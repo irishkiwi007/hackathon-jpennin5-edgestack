@@ -227,10 +227,16 @@ rebuilt (video/build_slides.py). Committed and pushed.
   (title "EdgeStack: Evidence-Gated Trading Agent", track "Options Alpha Agents"; cover,
   3:35 video, slides PDF, links, account ID all verified serving 200 on lablab's CDN).
   Deadline Fri Sep 4 17:00; as of submission we were the FIRST published entry.
-1. Daily LinkedIn posts Days 2-5 per docs/SOCIAL.md calendar (Day 1 posted Sun Aug 30;
-   Day 2 = fill brackets from the journal AFTER Mon's 15:45 ET pass). After each post:
-   edit the lablab submission, paste the post URL into the next social_media_post_link
-   slot (slot 1 filled; 2-5 empty).
+1. Daily LinkedIn posts Days 2-5 per docs/SOCIAL.md calendar (Day 1 posted Sun Aug 30).
+   **Day 2 is WRITTEN WITH REAL DATA and ready to post** — brackets filled from the
+   2026-08-31 session: trend gate open (+18.6%), credit canary blocked by 7 cents
+   (HYG 79.78 vs SMA100 79.85) -> equity gate CLOSED, core never went on; no
+   capitulation signal (deepest XLI -1.29 vs -2.50, 0.95x vs 1.40x); equity flat
+   $100,000, ZERO trades. Attachment built: docs/day1_journal.png (regenerate with
+   `python video/build_day1_card.py` — all figures read from journal/decisions.jsonl
+   + journal/scheduler.log, nothing invented). After each post: edit the lablab
+   submission, paste the post URL into the next social_media_post_link slot
+   (slot 1 filled; 2-5 empty).
 2. Rotate Alpaca paper keys -> update .env -> restart supervisors (keys were pasted in
    chat long ago; remind once if going live, don't nag)
 

@@ -21,19 +21,32 @@ Attach: the cover (Downloads/EdgeStack-cover.png)
 > Submission is live. Dashboard: https://jpennin5.github.io/edgestack/
 > Repo: https://github.com/jpennin5/edgestack
 
-## Day 2 — Mon Aug 31 (first live session — post AFTER the 15:45 ET entry pass)
-Attach: a dashboard or journal screenshot. Fill the [BRACKETS] from the journal — the
-refusal case is the better story if that's what happens.
+## Day 2 — Mon Aug 31 (first live session) — READY TO POST, real numbers
+Attach: `docs/day1_journal.png` (rendered from the actual 2026-08-31 journal entry —
+rebuild with `python video/build_day1_card.py`). What happened: the trend gate passed
+(+18.6%), the credit canary failed by 7 cents (HYG 79.78 vs SMA100 79.85), so the
+equity gate closed and the core never went on; no capitulation signal came close
+(deepest XLI −1.29 vs −2.50 trigger, 0.95x vs 1.40x volume floor). Equity flat at
+$100,000, zero trades. Source: `journal/decisions.jsonl`, `journal/scheduler.log`.
 
 > First live market session for EdgeStack in the @Alpaca × @lablab.ai hackathon.
 >
-> Today the agent [entered its overnight SPY core at the close / stood down — the
-> (trend gate / credit canary / volume ceiling / calm regime) blocked it: (numbers)].
-> That decision — with the exact numbers behind it — is in the public journal, and the
-> journal auto-commits to the repo after every session.
+> The agent stood down. One decision, zero trades, equity flat at $100,000 — and the
+> reason is in the public journal to the penny.
+>
+> The 12-month trend gate was open: SPY +18.6%. The credit canary wasn't — HYG closed
+> at 79.78 against its 100-day average of 79.85. Seven cents low. That one rule closed
+> the equity gate, so the overnight SPY core never went on. The capitulation sleeve
+> didn't come close either: the deepest stretch in the universe was XLI at −1.29
+> against a −2.50 trigger, on 0.95x volume against a 1.40x floor.
+>
+> Seven cents is exactly the margin you talk yourself past. But deleting that canary
+> costs 0.08–0.25 Sortino across two disjoint validation windows — and a rule you
+> overrule on a quiet Monday isn't a rule, it's a suggestion.
 >
 > Most trading-agent demos show you the trades. The refusals are where the discipline
-> lives. https://jpennin5.github.io/edgestack/
+> lives. The journal auto-commits to the repo after every session, so you can check
+> this one yourself. https://jpennin5.github.io/edgestack/
 
 ## Day 3 — Tue Sep 1 (the graveyard)
 
