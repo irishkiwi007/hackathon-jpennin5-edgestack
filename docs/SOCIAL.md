@@ -48,20 +48,45 @@ $100,000, zero trades. Source: `journal/decisions.jsonl`, `journal/scheduler.log
 > lives. The journal auto-commits to the repo after every session, so you can check
 > this one yourself. https://jpennin5.github.io/edgestack/
 
-## Day 3 — Tue Sep 1 (the graveyard)
+## Day 3 — Tue Sep 1 (retiring a live rule without touching anything else)
+The graveyard angle was already used, so Day 3 is the engineering story from today:
+hot-swapping a rule on a RUNNING trading agent mid-competition. Shipped as commit
+75cd343 (signal_engine + risk_gates + spread_builder + 2 new gate tests).
+Attach: `docs/day3_retire.png` (rebuild with `python video/build_day3_card.py`).
 
-> Every quant idea I tested for EdgeStack is published — especially the dead ones.
+> Today I changed a rule on a live trading agent while it was running. The
+> interesting part is everything that didn't happen.
 >
-> Elliott waves: surrogate data reproduces the "patterns", so they carry no signal.
-> Fibonacci levels: rank 4th–14th of 28 arbitrary bands. Five macro overlays: four
-> contradicted themselves out of sample. And my own first options design: negative
-> expectancy — found it, measured it, fixed it.
+> EdgeStack has traded a "MEDIUM" tier since day one: capitulation on ≥2.5x normal
+> volume. It shipped with a t-statistic of 3.5–4.0, which reads as decisive. It
+> isn't. That number assumes every signal is an independent event, and mine aren't
+> — the 27 signal days cluster in 2015, 2018 and 2020, and several "events" are one
+> panic hitting several ETFs at once. Cluster the statistic by signal day, re-check
+> with a block bootstrap, and t falls to about 1.0. Noise wearing a good suit.
 >
-> The negative results are load-bearing. They're why the surviving rules can be trusted.
-> The graveyard, with the number that killed each idea, is public:
+> So I retired it mid-competition, on the running system. Three properties made
+> that safe to do on a trading day:
+>
+> It can only refuse. The change flips a `tradeable` flag — it cannot open a
+> position or resize one. The worst case is a trade that doesn't happen.
+>
+> Open positions still manage out. Exit proposals get rebuilt from the journal and
+> default to tradeable, so anything opened under the old rule is still managed to
+> its exit. You retire a rule going forward, never retroactively — otherwise you
+> strand real money mid-trade.
+>
+> The refusal is visible. It isn't quietly sized to zero; it's refused at the gate
+> and the reason lands in the public journal: "tier MEDIUM retired by clustered-t
+> audit." An unexplained absence is indistinguishable from a bug.
+>
+> 24 gate tests — two of them written today — pin the behaviour so a later edit
+> can't quietly revive it. And the old numbers stay in the table on purpose: the
+> journal should show what I believed and what killed it.
+>
+> Deleting your own edge is not a setback. It's the job.
+>
+> @Alpaca × @lablab.ai AI Trading Agents Hackathon.
 > https://github.com/jpennin5/edgestack
->
-> Built for the @Alpaca × @lablab.ai AI Trading Agents Hackathon.
 
 ## Day 4 — Wed Sep 2 (what survived + the third engine)
 
