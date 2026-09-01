@@ -27,6 +27,7 @@ import datetime
 import json
 import math
 import os
+import urllib.request
 from typing import Any
 
 from broker import Alpaca, BrokerError
@@ -40,13 +41,63 @@ HOLD_SESSIONS = 3
 TREND_LOOKBACK = 252
 CREDIT_SMA = 100
 
+# ---- bill parking (DIVERSIFICATION.md addendum 2, adopted in research) --------
+# Gate-closed time is 18.4% of sessions across 49 stretches (median 3 days, mean
+# 31, max 405), so one round trip per stretch is ~24 round trips in 33 years and
+# the cost side is nearly irrelevant. Breakeven for even a median 3-session
+# stretch is y > 252*0.01%/3 ~ 0.84%, which is why y >= 1% is the principled
+# filter: it self-finances the short stretches, and long ones self-finance at any
+# yield. Worth ~+36bps/yr on both validation windows at unchanged risk.
+PARK_SYMBOL = "SGOV"
+PARK_ENABLED = True
+PARK_MIN_YIELD = 0.01       # the trader's rule: park only if the yield covers the round trip
+PARK_STALE_DAYS = 7         # a yield this old is not evidence
+
+
+def bill_yield(state: dict, today: datetime.date) -> tuple:
+    """(yield, source) for the 3-month T-bill, from FRED DGS3MO — the same series
+    the research was validated against. Cached once per session.
+
+    FAILS CLOSED: any fetch or parse problem returns 0.0, which fails the y >= 1%
+    filter, which means no parking. Being unable to prove the yield is a reason
+    not to park, never a reason to park anyway."""
+    cache = state.get("bill_yield") or {}
+    if cache.get("date") == today.isoformat():
+        return float(cache.get("y", 0.0)), str(cache.get("src", "cached"))
+    try:
+        url = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS3MO"
+        with urllib.request.urlopen(url, timeout=20) as fh:
+            text = fh.read().decode("utf-8", "replace")
+        obs_date, val = "", None
+        for line in reversed(text.strip().splitlines()):
+            parts = [c.strip() for c in line.split(",")]
+            if len(parts) < 2 or parts[-1] in (".", "", "DGS3MO"):
+                continue
+            try:
+                val = float(parts[-1]) / 100.0
+                obs_date = parts[0]
+                break
+            except ValueError:
+                continue
+        if val is None:
+            raise ValueError("no numeric observation in series")
+        age = (today - datetime.date.fromisoformat(obs_date)).days
+        if age > PARK_STALE_DAYS:
+            return 0.0, f"DGS3MO stale ({obs_date}, {age}d old) - parking refused"
+        state["bill_yield"] = {"date": today.isoformat(), "y": val,
+                               "src": f"FRED DGS3MO {obs_date}"}
+        return val, f"FRED DGS3MO {obs_date}"
+    except Exception as exc:                                    # noqa: BLE001
+        return 0.0, f"DGS3MO unavailable ({type(exc).__name__}) - parking refused"
+
 STATE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..",
                           "journal", "equity_state.json")
 
 
 # ---------------------------------------------------------------- state
 def _blank_state() -> dict:
-    return {"core": None, "sleeve": [], "pending_fills": [], "slippage": []}
+    return {"core": None, "sleeve": [], "pending_fills": [], "slippage": [],
+            "parked": None, "bill_yield": {}}
 
 
 def load_state() -> dict:
@@ -278,7 +329,28 @@ def equity_entry(api: Alpaca, equity: float, gate_open: bool, gate_reason: str,
             actions.append({"action": "sleeve_full",
                             "detail": f"sleeve at cap (${current:,.0f})"})
 
-    # 3. core: overnight entry when the gate is open
+    # 3. bill parking, side A — UNPARK. Runs BEFORE the core entry so the sale and
+    #    the SPY purchase settle on the same close and capital is never double-spent.
+    if state.get("parked") and (gate_open or not PARK_ENABLED):
+        pq = state["parked"]["qty"]
+        if dry_run:
+            actions.append({"action": "would_exit_bills",
+                            "detail": f"{PARK_SYMBOL} x{pq} — gate reopened"})
+        else:
+            try:
+                res = _moc_or_market(api, PARK_SYMBOL, pq, "sell")
+                _watch_fill(state, res, PARK_SYMBOL, "sell", pq,
+                            prices.get(PARK_SYMBOL, 0.0), "bills_exit", today)
+                held = _sessions_between(state["parked"]["entry_date"], today)
+                actions.append({"action": "bills_exit",
+                                "detail": f"{PARK_SYMBOL} x{pq} MOC after {held} "
+                                          f"session(s) parked — gate reopened, "
+                                          f"order {res.get('id', '?')[:8]}"})
+                state["parked"] = None
+            except BrokerError as exc:
+                actions.append({"action": "bills_exit_failed", "detail": str(exc)})
+
+    # 4. core: overnight entry when the gate is open
     if gate_open and state["core"] is None:
         px = prices.get(CORE_SYMBOL, 0.0)
         qty = int(CORE_WEIGHT * equity / px) if px > 0 else 0
@@ -308,6 +380,40 @@ def equity_entry(api: Alpaca, equity: float, gate_open: bool, gate_reason: str,
                 state["core"] = None
             except BrokerError as exc:
                 actions.append({"action": "core_force_exit_failed", "detail": str(exc)})
+
+    # 5. bill parking, side B — PARK. Only while the gate is shut, only when the
+    #    3-month yield clears the round trip, and never alongside a live core.
+    if (PARK_ENABLED and not gate_open and state.get("parked") is None
+            and state["core"] is None):
+        y, src = bill_yield(state, today)
+        px = prices.get(PARK_SYMBOL, 0.0)
+        qty = int(CORE_WEIGHT * equity / px) if px > 0 else 0
+        if y < PARK_MIN_YIELD:
+            actions.append({"action": "bills_skipped",
+                            "detail": f"3m yield {100 * y:.2f}% < "
+                                      f"{100 * PARK_MIN_YIELD:.2f}% floor ({src}); "
+                                      f"idle cash stays in cash"})
+        elif qty < 1:
+            actions.append({"action": "bills_skipped",
+                            "detail": f"{PARK_SYMBOL} price unavailable or budget "
+                                      f"< 1 share"})
+        elif dry_run:
+            actions.append({"action": "would_enter_bills",
+                            "detail": f"{PARK_SYMBOL} x{qty} (~${qty * px:,.0f}) at "
+                                      f"{100 * y:.2f}% — gate closed ({src})"})
+        else:
+            try:
+                res = _moc_or_market(api, PARK_SYMBOL, qty, "buy")
+                _watch_fill(state, res, PARK_SYMBOL, "buy", qty, px, "bills_entry", today)
+                state["parked"] = {"qty": qty, "entry_date": today.isoformat(),
+                                   "yield": round(y, 5)}
+                actions.append({"action": "bills_enter",
+                                "detail": f"{PARK_SYMBOL} x{qty} MOC (~${qty * px:,.0f}) "
+                                          f"while the gate is shut, 3m yield "
+                                          f"{100 * y:.2f}% ({src}), "
+                                          f"order {res.get('id', '?')[:8]}"})
+            except BrokerError as exc:
+                actions.append({"action": "bills_enter_failed", "detail": str(exc)})
 
     if not dry_run:
         save_state(state)

@@ -401,6 +401,11 @@ def main() -> int:
     if offweight:
         print(f"  !! sleeve refused off-weight signal(s): {'; '.join(offweight)}")
     last_px = {sym: b[-1].close for sym, b in bars.items() if b}
+    # SGOV is not in the scan universe (bills never produce a capitulation signal),
+    # but the parking rule needs its price to size. Absent price => qty 0 => no park.
+    _park_closes = _long_closes(equity_core.PARK_SYMBOL, days=20)
+    if _park_closes:
+        last_px[equity_core.PARK_SYMBOL] = _park_closes[-1]
     eq_actions = equity_core.equity_entry(api, equity, gate_open, gate_reason,
                                           sleeve_sigs, last_px, today, args.dry_run)
     for a in eq_actions:
