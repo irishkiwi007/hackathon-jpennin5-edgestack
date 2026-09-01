@@ -240,6 +240,33 @@ rebuilt (video/build_slides.py). Committed and pushed.
 2. Rotate Alpaca paper keys -> update .env -> restart supervisors (keys were pasted in
    chat long ago; remind once if going live, don't nag)
 
+## POSTURE CHANGE 2026-09-01 — development continues THROUGH judging
+Operator reviewed the competition's own LinkedIn posts and concluded this is a
+developers' contest: judges want to see development and the journey, not just
+performance. The earlier "freeze until Sep 4" stance is REVERSED. Rules
+re-checked before resuming (HACKATHON.md): nothing forbids post-submission
+commits; the repo is meant to be public and reviewed; the deadline (Fri Sep 4,
+11:00 ET / 15:00 UTC) has not passed, so submission-form edits are still
+allowed. The only hard account rule is that the judged account must be the
+dedicated new one — PA3ZCDDOPR2N is never touched by the lab or by tooling.
+CAVEAT, stated honestly: **P&L Performance is still one of the five criteria**
+and judges pull it from the account ID, so the risk is not rule-breaking, it is
+shipping a live-trading bug during the judged window. Ship in risk order:
+  SAFE NOW  docs, dashboard, tooling, tests, observability, refusal-only rules
+  CAREFUL   anything that changes sizing or creates orders
+  FLAG-OFF  brand-new order paths (see SGOV below) — commit tested code with the
+            flag defaulting off rather than debut it live during judging.
+
+### SHIPPED 2026-09-01: MEDIUM tier retired (commit 75cd343)
+Our own clustered-t audit killed a rule we were trading live: per-event t 3.5-4.0
+collapses to ~1.0 once the 27 signal days are clustered (half in 2015/18/20).
+signal_engine MEDIUM tradeable=False (both modes); Proposal carries `tradeable`
+so it is REFUSED at gate_tier_tradeable with a journalled reason instead of
+silently sized to zero; equity sleeve already filtered on the flag
+(run_agent.py:384) so one change retires it from both sleeves. 24 gate checks
+(2 new, pinning refusal), 0 failed; study-match suite still passes. This class
+of change can only refuse a trade, never create or mis-size one.
+
 ## POST-SUBMISSION RESEARCH (2026-08-30 evening)
 - Parking flat hours: XLP/gold intraday + gate-closed-night variants all REJECTED
   (scripts/park_flat.py; DIVERSIFICATION.md addendum 1 - no intraday drift anywhere).
