@@ -1,4 +1,27 @@
 {
   "core": null,
-  "sleeve": []
+  "sleeve": [],
+  "pending_fills": [
+    {
+      "order_id": "49289eaf-08c7-458b-8255-000d228865aa",
+      "symbol": "SGOV",
+      "side": "buy",
+      "qty": 697,
+      "ref_px": 100.405,
+      "ref_source": "sizing_price",
+      "kind": "bills_entry",
+      "submitted": "2026-09-01"
+    }
+  ],
+  "slippage": [],
+  "parked": {
+    "qty": 697,
+    "entry_date": "2026-09-01",
+    "yield": 0.039
+  },
+  "bill_yield": {
+    "date": "2026-09-01",
+    "y": 0.039,
+    "src": "FRED DGS3MO 2026-08-28"
+  }
 }

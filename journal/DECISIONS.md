@@ -3,6 +3,44 @@
 Capitulation-reversal strategy. The model proposes; `risk_gates.py` disposes.
 Every session is recorded, including the majority that do not trade.
 
+## 2026-09-01
+Equity $100,000 · open positions 0
+
+**No signal.** Nothing met `stretch < -2.5` with volume >= 1.4x.
+
+**Actions**
+
+- core_gated: trend UP (12m +18.0%) | credit DETERIORATING (HYG 79.07 vs SMA100 79.83)
+- bills_enter: SGOV x697 MOC (~$69,982) while the gate is shut, 3m yield 3.90% (FRED DGS3MO 2026-08-28), order 49289eaf
+
+<details><summary>Closest to firing</summary>
+
+| symbol | stretch | volume | blocked by |
+|---|---|---|---|
+| XLI | -1.76 | 1.29x | stretch -1.76 > -2.5; volume 1.29x < 1.4x (no capitulation) |
+| XLY | -1.49 | 0.87x | stretch -1.49 > -2.5; volume 0.87x < 1.4x (no capitulation) |
+| XLF | -1.38 | 0.78x | stretch -1.38 > -2.5; volume 0.78x < 1.4x (no capitulation) |
+| HYG | -1.34 | 1.29x | stretch -1.34 > -2.5; volume 1.29x < 1.4x (no capitulation) |
+| GDX | -1.29 | 0.75x | stretch -1.29 > -2.5; volume 0.75x < 1.4x (no capitulation) |
+| XLP | -1.28 | 0.86x | stretch -1.28 > -2.5; volume 0.86x < 1.4x (no capitulation) |
+| IWM | -1.23 | 1.12x | stretch -1.23 > -2.5; volume 1.12x < 1.4x (no capitulation) |
+| XLB | -1.21 | 1.05x | stretch -1.21 > -2.5; volume 1.05x < 1.4x (no capitulation) |
+
+</details>
+
+> Yahoo completed sessions only (16 symbols); no live meta -> prior-session signal, next-open entry
+
+---
+
+## 2026-09-01
+Equity $100,000 · open positions 0
+
+**No signal.** Nothing met `stretch < -2.5` with volume >= 1.4x.
+
+> exit management pass
+
+---
+
 ## 2026-08-31
 Equity $100,000 · open positions 0
 
