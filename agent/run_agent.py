@@ -382,9 +382,24 @@ def main() -> int:
     gate_open, gate_reason = equity_core.compute_gate(
         _long_closes("SPY"), _long_closes("HYG"))
     print(f"  equity gate: {'OPEN' if gate_open else 'CLOSED'} — {gate_reason}")
-    sleeve_sigs = [(sg.symbol, f"stretch {sg.stretch:+.2f} vol {sg.volx:.2f}x {sg.tier}")
-                   for sg in signals
-                   if sg.symbol in equity_core.SLEEVE_UNIVERSE and sg.tradeable]
+    # The equity sleeve splits its batch budget EQUALLY across the day's signals and
+    # ignores tier size_weight. That is not an oversight — it is the convention every
+    # backtest validated (edgestack_live use_tier_size=0), and it is safe only while
+    # every TRADEABLE tier carries weight 1.00. Since MEDIUM was retired that holds by
+    # construction (FULL is the only tradeable cell), but a future tier could quietly
+    # break it, so an off-weight signal is refused loudly instead of being silently
+    # mis-sized by the equal split.
+    sleeve_sigs, offweight = [], []
+    for sg in signals:
+        if sg.symbol not in equity_core.SLEEVE_UNIVERSE or not sg.tradeable:
+            continue
+        if abs(sg.size_weight - 1.0) > 1e-9:
+            offweight.append(f"{sg.symbol} tier {sg.tier} weight {sg.size_weight:.2f}")
+            continue
+        sleeve_sigs.append((sg.symbol,
+                            f"stretch {sg.stretch:+.2f} vol {sg.volx:.2f}x {sg.tier}"))
+    if offweight:
+        print(f"  !! sleeve refused off-weight signal(s): {'; '.join(offweight)}")
     last_px = {sym: b[-1].close for sym, b in bars.items() if b}
     eq_actions = equity_core.equity_entry(api, equity, gate_open, gate_reason,
                                           sleeve_sigs, last_px, today, args.dry_run)
