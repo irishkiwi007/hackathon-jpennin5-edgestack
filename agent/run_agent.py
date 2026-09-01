@@ -221,6 +221,9 @@ def main() -> int:
           f"options level {acct.get('options_trading_level')}")
 
     actions = manage_exits(api, today, args.dry_run)
+    # Reconcile BEFORE placing today's exit: yesterday's fills are settled by now,
+    # and this way the day's slippage record is complete before new orders are added.
+    actions += equity_core.reconcile_fills(api, args.dry_run)
     actions += equity_core.equity_exit(api, args.dry_run)
     for a in actions:
         print(f"  {a['action']}: {a['detail']}")

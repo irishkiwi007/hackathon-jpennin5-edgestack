@@ -45,14 +45,22 @@ STATE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..",
 
 
 # ---------------------------------------------------------------- state
+def _blank_state() -> dict:
+    return {"core": None, "sleeve": [], "pending_fills": [], "slippage": []}
+
+
 def load_state() -> dict:
+    state = _blank_state()
     if not os.path.exists(STATE_PATH):
-        return {"core": None, "sleeve": []}
+        return state
     try:
         with open(STATE_PATH, encoding="utf-8") as fh:
-            return json.load(fh)
+            state.update(json.load(fh))
     except (OSError, ValueError):
-        return {"core": None, "sleeve": []}
+        return _blank_state()
+    for k, v in _blank_state().items():        # tolerate older state files
+        state.setdefault(k, v)
+    return state
 
 
 def save_state(state: dict) -> None:
@@ -89,6 +97,111 @@ def _moc_or_market(api: Alpaca, symbol: str, qty: int, side: str) -> dict:
         return api.submit_order({**base, "time_in_force": "day"})
 
 
+def _watch_fill(state: dict, res: dict, symbol: str, side: str, qty: int,
+                ref_px: float, kind: str, today: datetime.date) -> None:
+    """Record an order for later fill reconciliation.
+
+    The overnight-core research put breakeven at 0.3-0.6bp of round-trip cost per
+    night, which is the difference between the edge being real and being paid to
+    the market. That number was assumed, never measured on this account — so every
+    order now carries the price it was SIZED against, and reconcile_fills compares
+    it to the actual fill. Observability only: nothing here changes an order."""
+    oid = res.get("id")
+    if not oid:
+        return
+    # ref_px <= 0 means "score me against the official session open", which does
+    # not exist yet at 09:31 — reconcile_fills fetches it the next day. That is
+    # the only honest reference for an at-the-open exit.
+    state.setdefault("pending_fills", []).append(
+        {"order_id": oid, "symbol": symbol, "side": side, "qty": int(qty),
+         "ref_px": round(float(ref_px), 4) if ref_px > 0 else 0.0,
+         "ref_source": "sizing_price" if ref_px > 0 else "session_open",
+         "kind": kind, "submitted": today.isoformat()})
+
+
+def reconcile_fills(api: Alpaca, dry_run: bool) -> list:
+    """Match yesterday's submitted orders to their fills and record the slippage.
+
+    Positive bps ALWAYS means "worse than the price we sized against": a buy that
+    filled higher, or a sell that filled lower. Unfilled/cancelled orders are
+    dropped after their session so the list cannot grow without bound."""
+    actions: list = []
+    state = load_state()
+    pending = state.get("pending_fills") or []
+    if not pending or dry_run:
+        return actions
+    try:
+        closed = api.orders(status="closed")
+    except BrokerError as exc:
+        actions.append({"action": "fill_reconcile_failed", "detail": str(exc)})
+        return actions
+
+    by_id = {o.get("id"): o for o in closed if o.get("id")}
+    # deferred references: pull the official open for the session each order ran in
+    opens: dict = {}
+    need = {(p["symbol"], p["submitted"]) for p in pending
+            if p.get("ref_source") == "session_open" and p["order_id"] in by_id}
+    if need:
+        try:
+            first = min(d for _s, d in need)
+            bars = api.daily_bars(sorted({s for s, _d in need}), first)
+            for sym, rows in bars.items():
+                for r in rows:
+                    opens[(sym, str(r.get("t", ""))[:10])] = float(r.get("o") or 0.0)
+        except (BrokerError, ValueError, TypeError) as exc:
+            actions.append({"action": "fill_reference_unavailable",
+                            "detail": f"session opens not retrievable yet: {exc}"})
+
+    still: list = []
+    for p in pending:
+        o = by_id.get(p["order_id"])
+        if o is None:
+            still.append(p)               # not reported yet; try again next pass
+            continue
+        fill = o.get("filled_avg_price")
+        try:
+            fill = float(fill) if fill is not None else 0.0
+        except (TypeError, ValueError):
+            fill = 0.0
+        if fill <= 0:
+            actions.append({"action": "fill_unfilled",
+                            "detail": f"{p['symbol']} {p['side']} x{p['qty']} "
+                                      f"({p['kind']}) ended {o.get('status')} unfilled"})
+            continue
+        ref = p["ref_px"]
+        if p.get("ref_source") == "session_open":
+            ref = opens.get((p["symbol"], p["submitted"]), 0.0)
+            if ref <= 0:
+                still.append(p)           # open not published yet; retry next pass
+                continue
+        p = {**p, "ref_px": round(ref, 4)}
+        signed = (fill - p["ref_px"]) if p["side"] == "buy" else (p["ref_px"] - fill)
+        bps = round(10_000.0 * signed / p["ref_px"], 2)
+        rec = {"date": p["submitted"], "symbol": p["symbol"], "side": p["side"],
+               "kind": p["kind"], "qty": p["qty"], "ref_px": p["ref_px"],
+               "fill_px": round(fill, 4), "slippage_bps": bps,
+               "ref_source": p.get("ref_source", "sizing_price")}
+        state.setdefault("slippage", []).append(rec)
+        actions.append({"action": "fill_reconciled",
+                        "detail": f"{p['symbol']} {p['side']} x{p['qty']} ({p['kind']}) "
+                                  f"ref {p['ref_px']:.2f} -> fill {fill:.2f} = "
+                                  f"{bps:+.2f}bps vs sizing price"})
+
+    state["pending_fills"] = still
+    state["slippage"] = (state.get("slippage") or [])[-200:]
+    save_state(state)
+
+    measured = [r["slippage_bps"] for r in state["slippage"]]
+    if measured:
+        avg = sum(measured) / len(measured)
+        actions.append({"action": "slippage_running",
+                        "detail": f"{len(measured)} fills measured, mean "
+                                  f"{avg:+.2f}bps vs sizing price "
+                                  f"(overnight-core breakeven is 0.3-0.6bps/night "
+                                  f"round trip)"})
+    return actions
+
+
 def _sessions_between(a: str, b: datetime.date) -> int:
     cur = datetime.date.fromisoformat(a)
     n = 0
@@ -120,6 +233,8 @@ def equity_entry(api: Alpaca, equity: float, gate_open: bool, gate_reason: str,
             else:
                 try:
                     res = _moc_or_market(api, p["symbol"], p["qty"], "sell")
+                    _watch_fill(state, res, p["symbol"], "sell", p["qty"],
+                                prices.get(p["symbol"], 0.0), "sleeve_exit", today)
                     actions.append({"action": "sleeve_exit",
                                     "detail": f"{p['symbol']} x{p['qty']} MOC "
                                               f"order {res.get('id', '?')[:8]}"})
@@ -149,6 +264,7 @@ def equity_entry(api: Alpaca, equity: float, gate_open: bool, gate_reason: str,
                     continue
                 try:
                     res = _moc_or_market(api, sym, qty, "buy")
+                    _watch_fill(state, res, sym, "buy", qty, px, "sleeve_entry", today)
                     state["sleeve"].append({"symbol": sym, "qty": qty,
                                             "dollars": qty * px,
                                             "entry_date": today.isoformat()})
@@ -173,6 +289,8 @@ def equity_entry(api: Alpaca, equity: float, gate_open: bool, gate_reason: str,
             else:
                 try:
                     res = _moc_or_market(api, CORE_SYMBOL, qty, "buy")
+                    _watch_fill(state, res, CORE_SYMBOL, "buy", qty, px,
+                                "core_entry", today)
                     state["core"] = {"qty": qty, "entry_date": today.isoformat()}
                     actions.append({"action": "core_enter",
                                     "detail": f"SPY x{qty} MOC overnight — {gate_reason} "
@@ -209,6 +327,8 @@ def equity_exit(api: Alpaca, dry_run: bool) -> list:
                 res = api.submit_order({"symbol": CORE_SYMBOL, "qty": str(int(qty)),
                                         "side": "sell", "type": "market",
                                         "time_in_force": "day"})
+                _watch_fill(state, res, CORE_SYMBOL, "sell", qty, 0.0,
+                            "core_exit", datetime.date.today())
                 state["core"] = None
                 save_state(state)
                 actions.append({"action": "core_exit",
