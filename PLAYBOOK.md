@@ -267,6 +267,26 @@ silently sized to zero; equity sleeve already filtered on the flag
 (2 new, pinning refusal), 0 failed; study-match suite still passes. This class
 of change can only refuse a trade, never create or mis-size one.
 
+### SHIPPED 2026-09-01 (cont.): the rest of the queue
+- **Fill reconciliation** (0243be5) — every equity order records the price it was
+  sized against; the next 09:31 pass matches it to the actual fill and journals
+  the slippage in bps (positive = worse). The at-the-open core exit defers to the
+  official session open, fetched the following day. Turns the overnight-core
+  0.3-0.6bp breakeven from an assumption into a measurement. Observability only.
+- **Equal-split guard** (190abb2) — the sleeve ignoring tier size_weight is NOT a
+  bug: equal split is what every backtest validated, and after retiring MEDIUM,
+  FULL (weight 1.00) is the only tradeable tier, so weighting code could not
+  change an order. Instead an off-weight signal is now refused loudly, because a
+  future tier would otherwise be silently mis-sized.
+- **SGOV bill parking LIVE** (a192e4f) — holds SGOV through gate-closed stretches
+  when 3m yield >= 1% (FRED DGS3MO, currently 3.90%). Fails CLOSED: unreachable/
+  stale/unparseable yield => no parking. Unpark runs BEFORE the core entry so the
+  reopen day settles [SGOV sell, SPY buy] on one close. Never double-parks, never
+  parks alongside a live core.
+  **EXPECT A REAL ~$70k SGOV BUY AT THE NEXT 15:45 ET PASS** while the gate stays
+  shut — the scheduler spawns run_agent per pass, so it picks up new code without
+  a restart. Watch journal/scheduler.log for `bills_enter`.
+
 ## POST-SUBMISSION RESEARCH (2026-08-30 evening)
 - Parking flat hours: XLP/gold intraday + gate-closed-night variants all REJECTED
   (scripts/park_flat.py; DIVERSIFICATION.md addendum 1 - no intraday drift anywhere).
