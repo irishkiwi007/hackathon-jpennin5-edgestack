@@ -73,6 +73,15 @@ case("credit too thin vs width", False, "credit_quality",
 case("oversized for tier cap", False, "per_trade_risk", p=good_proposal(contracts=40))
 case("small tier caps size", False, "per_trade_risk",
      p=good_proposal(contracts=2, tier="SMALL", size_weight=0.35))
+# MEDIUM was retired 2026-09-01 by the clustered-t audit (per-event t 3.5-4.0
+# collapses to ~1.0 once the 27 signal days are clustered). It must be REFUSED,
+# and refused at the tier gate with a reason, not silently sized away. This case
+# exists so a future edit cannot quietly revive it.
+case("retired MEDIUM tier refused", False, "tier_tradeable",
+     p=good_proposal(tier="MEDIUM", size_weight=0.60, volx=3.1, tradeable=False))
+# ...and the retirement must not leak into the tier that survived the audit.
+case("FULL tier still tradeable", True, None,
+     p=good_proposal(tier="FULL", size_weight=1.0, tradeable=True))
 case("portfolio risk exceeded", False, "portfolio_risk",
      a=good_account(open_positions=[{"underlying": x, "max_loss": 2_000.0}
                                     for x in ("QQQ", "IWM")] +

@@ -57,6 +57,10 @@ class Proposal:
     stretch: float
     volx: float
     friction: float = 0.0          # half-spread per leg, summed; cost of crossing once
+    # Carried from the signal so a retired tier is refused at the gate rather
+    # than silently sized to zero. Defaults True: exit-management proposals are
+    # rebuilt from the journal for trades that were already opened.
+    tradeable: bool = True
 
     @property
     def round_trip_friction(self) -> float:
@@ -126,14 +130,26 @@ def gate_structure(p: Proposal, acct: AccountState, mkt: dict) -> GateResult:
 
 
 def gate_tier_tradeable(p: Proposal, acct: AccountState, mkt: dict) -> GateResult:
-    """The SMALL volume cell (1.4-1.8x) measures +0.721% entering at the signal-day close but
-    -0.223% entering at the next open, which is the only entry free-tier data allows. It is
-    detected and refused here rather than dropped silently, so the journal shows the reasoning."""
-    ok = p.size_weight > 0.0
-    return GateResult("tier_tradeable", ok,
-                      f"tier {p.tier} tradeable on next-open entry" if ok
-                      else f"tier {p.tier} inverts on delayed entry "
-                           f"(-0.223% vs +0.721% at the close); refused")
+    """Two different tiers are refused here, for two different measured reasons.
+
+    SMALL (1.4-1.8x) measures +0.721% entering at the signal-day close but -0.223%
+    entering at the next open, which is the only entry free-tier data allows.
+    MEDIUM (>=2.5x) was retired 2026-09-01: its per-event t of 3.5-4.0 assumed
+    independent events, but its 27 signal days cluster in 2015/2018/2020 and the
+    clustered statistic is t~0.90-1.12.
+
+    Both are detected and refused here rather than dropped silently, so the journal
+    shows the reasoning instead of an unexplained absence."""
+    ok = p.tradeable and p.size_weight > 0.0
+    if ok:
+        why = f"tier {p.tier} tradeable on next-open entry"
+    elif not p.tradeable:
+        why = (f"tier {p.tier} retired by clustered-t audit "
+               f"(t~1.0 once the panic days are clustered, not 3.5); refused")
+    else:
+        why = (f"tier {p.tier} inverts on delayed entry "
+               f"(-0.223% vs +0.721% at the close); refused")
+    return GateResult("tier_tradeable", ok, why)
 
 
 def gate_expiry(p: Proposal, acct: AccountState, mkt: dict) -> GateResult:

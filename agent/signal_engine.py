@@ -65,14 +65,24 @@ TIER_TABLES = {
     "same_day": (
         ("SMALL",  1.5, 1.8, 0.35, 0.644, 0.721, 2.67, True),
         ("FULL",   1.8, 2.5, 1.00, 0.701, 1.897, 4.32, True),
-        ("MEDIUM", 2.5, float("inf"), 0.60, 0.655, 1.312, 3.96, True),
+        ("MEDIUM", 2.5, float("inf"), 0.60, 0.655, 1.312, 3.96, False),
     ),
     "next_open": (
         ("SMALL",  1.4, 1.8, 0.00, 0.000, -0.223, 0.00, False),
         ("FULL",   1.8, 2.5, 1.00, 0.687,  2.019, 4.14, True),
-        ("MEDIUM", 2.5, float("inf"), 0.60, 0.672, 1.578, 3.50, True),
+        ("MEDIUM", 2.5, float("inf"), 0.60, 0.672, 1.578, 3.50, False),
     ),
 }
+# MEDIUM was retired 2026-09-01 by our own audit, not by a loss. Its published
+# t-statistics above (3.96 / 3.50) are per-EVENT, which silently assumes events
+# are independent. They are not: the 27 MEDIUM signal days cluster hard (roughly
+# half fall in 2015, 2018 and 2020), and several "events" are the same panic
+# hitting several ETFs at once. Re-scored with the t clustered by signal day, and
+# again with a block bootstrap, the edge collapses to t≈0.90-1.12 — indistinguishable
+# from noise. Leave-one-out on the research engine agreed: removing the >=2.5x
+# cell costs nothing on either validation window. The numbers stay in the table
+# because the journal should show what we once believed and what killed it.
+# FULL (1.8-2.5x) is untouched and remains the only tradeable equity-panic cell.
 DEFAULT_MODE = "next_open"          # the safe path; same_day is opt-in when the feed proves out
 TIERS = TIER_TABLES[DEFAULT_MODE]   # back-compat for the verification test
 

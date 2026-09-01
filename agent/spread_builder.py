@@ -163,6 +163,7 @@ def build(signal: Signal,
             stretch=signal.stretch,
             volx=signal.volx,
             friction=round(friction, 4),
+            tradeable=signal.tradeable,
         ), note
 
     return None, ("no width from {:.0%} down to {:.0%} fits the risk budget: {}"
