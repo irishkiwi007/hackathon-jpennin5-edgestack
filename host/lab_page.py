@@ -65,6 +65,7 @@ PUBLIC = {
     "harness_incident", "policy_update", "graveyard_repetition_blocked",
     "stop_request", "stop_armed", "resume_applied", "candidate_superseded",
     "name_allocated", "holdout_audit", "holdout_refused", "shadow_forward_run",
+    "discovery_rate", "discovery_spike",
 }
 
 
@@ -240,6 +241,18 @@ def card(e):
                          f"adopted ({100 * float(e.get('false_discovery_rate') or 0):.0f}%). "
                          f"Every real adoption is read against this."),
                 "meta": f"root {e.get('root', 'funnel')}"}
+    if t == "discovery_rate":
+        a = e.get("all_time") or {}
+        return {**base, "kind": "note", "title": f"Discovery rate \u2014 block {e.get('block')}",
+                "body": (f"this block: zone hits {100*float(e.get('block_zone_rate',0)):.0f}%, adopts "
+                         f"{100*float(e.get('block_adopt_rate',0)):.0f}%; all-time zone {100*float(a.get('zone_rate',0)):.0f}%, "
+                         f"adopt {100*float(a.get('adopt_rate',0)):.0f}%, reject {100*float(a.get('reject_rate',0)):.0f}%"),
+                "meta": f"{e.get('trials')} trials"}
+    if t == "discovery_spike":
+        return {**base, "kind": "warn", "title": "Discovery-rate spike detected",
+                "body": (f"{e.get('zone_hits')}/{e.get('n')} zone hits vs a {100*float(e.get('baseline_rate',0)):.0f}% baseline "
+                         f"(p={e.get('p_value')}). A fresh mining-null run is scheduled to tell genuine "
+                         f"improvement from a funnel that loosened."), "meta": ""}
     if t == "brain_changed":
         to = e.get("to") or {}
         return {**base, "kind": "op", "title": "Brain switched by the operator",
