@@ -402,6 +402,13 @@ def publish(html_text):
     if status == 200 and cur.get("sha"):
         body["sha"] = cur["sha"]
     status, out = publish_url.api("PUT", api, tok, body)
+    if status == 409:
+        # lost a compare-and-swap to the 15-minute publisher loop: re-read the
+        # current sha and try once more (2026-09-02)
+        status, cur = publish_url.api("GET", api + f"?ref={publish_url.BRANCH}", tok)
+        if status == 200 and cur.get("sha"):
+            body["sha"] = cur["sha"]
+            status, out = publish_url.api("PUT", api, tok, body)
     if status in (200, 201):
         print("published https://jpennin5.github.io/edgestack/lab/")
         return 0
