@@ -300,3 +300,32 @@ of change can only refuse a trade, never create or mis-size one.
 "AI proposes / code disposes" is the meta of the whole field (Gatekeeper, Finly, Refusal
 Rails, OWL, Uncharted, APEX). EdgeStack's differentiator = the research program (33y,
 surrogate nulls, 3 engines, public graveyard). Do NOT lead with determinism framing.
+
+## Deploys: forge `master:live` promotion (adopted 2026-09-01)
+
+The household Forgejo is the origin of truth (private repo + redundant copy);
+GitHub is a push-mirror receiving exactly `master` and `live` (fixed refspec,
+forced - the mirror follows the forge). `gh-pages` is deliberately NOT
+mirrored: the tunnel supervisor publishes it through the GitHub contents API,
+and that judged pipeline keeps its single writer. No public URL changed.
+
+- Work lands with `git push forge master`. **Promotion is `git push forge
+  master:live`.** Do not push master to GitHub directly any more - the mirror
+  force-follows the forge and would overwrite it.
+- The host deployer (`C:\Users\Lenovo\edgestack-deploy\live-deploy.ps1`,
+  `poll|force|rollback|status|loop`; the Startup script runs `loop`, every
+  120s) ports the media-portal protocol: validate BEFORE touching the running
+  stack (compileall + required files + state wiring), swap behind the
+  `edgestack-live` junction, health-gate (scheduler process + dashboard
+  answering), automatic rollback to the kept previous checkout, and a
+  trading-window hold (09:20-09:50, 15:35-16:10 ET) so a deploy can never land
+  mid-pass. Runtime state (journal, cloudflared, .env) lives outside the
+  swapped trees, so rollbacks keep every fill.
+- Acceptance drills (2026-09-01, evening): an unparseable promotion was
+  refused before anything running was touched; a compiles-but-crashes
+  promotion swapped in, failed the health gate, and was rolled back
+  automatically in 8 seconds; the quiet path and the GitHub mirror were then
+  verified live. Three real deployer bugs were found and fixed BY the drills
+  (a PowerShell function shadowing git.exe, pipeline output polluting exit
+  codes, and a backspace literal corrupting a path) - which is what drills
+  are for.
