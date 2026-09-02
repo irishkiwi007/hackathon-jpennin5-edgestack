@@ -67,7 +67,7 @@ def main() -> int:
         print("commit failed:", c.stderr[:200])
         return 1
     if run(["git", "remote", "get-url", "forge"], cwd=work).returncode == 0:
-        p = run(["git", "push", "-q", "forge", "HEAD:master"], cwd=work)
+        p = run(["git", "push", "-q", "forge", "HEAD:main"], cwd=work)
         print("pushed to forge (mirror -> GitHub)" if p.returncode == 0
               else f"forge push failed: {p.stderr[:200]}")
         return 0 if p.returncode == 0 else 1

@@ -98,7 +98,7 @@ Attach: `docs/day4_stress.png` (rebuild with `python video/build_day4_card.py`).
 > Last night I moved EdgeStack's live process off my working tree and behind a
 > promotion pipeline, then used the running competition system as the stress test.
 >
-> The shape: work lands on `master` in a private forge; `git push forge master:live`
+> The shape: work lands on `master` in a private forge; `git push forge main:live`
 > promotes; a poller validates the new checkout before anything running is touched,
 > swaps it in, health-checks it, and puts the previous one back if it doesn't come up.
 > GitHub became a push-mirror. Deploys hold during the two trading windows so a swap

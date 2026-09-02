@@ -304,12 +304,12 @@ surrogate nulls, 3 engines, public graveyard). Do NOT lead with determinism fram
 ## Deploys: forge `master:live` promotion (adopted 2026-09-01)
 
 The household Forgejo is the origin of truth (private repo + redundant copy);
-GitHub is a push-mirror receiving exactly `master` and `live` (fixed refspec,
+GitHub is a push-mirror receiving `main` (plus a `master` alias until GitHub's default flips) and `live` (fixed refspec,
 forced - the mirror follows the forge). `gh-pages` is deliberately NOT
 mirrored: the tunnel supervisor publishes it through the GitHub contents API,
 and that judged pipeline keeps its single writer. No public URL changed.
 
-- Work lands with `git push forge master`. **Promotion is `git push forge
+- Work lands with `git push forge main`. **Promotion is `git push forge
   master:live`.** Do not push master to GitHub directly any more - the mirror
   force-follows the forge and would overwrite it.
 - The host deployer (`C:\Users\Lenovo\edgestack-deploy\live-deploy.ps1`,
