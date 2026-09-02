@@ -159,6 +159,23 @@ class Alpaca:
                     break
         return out
 
+    def latest_prices(self, symbols: list[str]) -> dict[str, float]:
+        """Last trade per symbol (IEX feed: allowed on the free tier for the latest print,
+        fine for marks and whole-share sizing; never used for volume)."""
+        out: dict[str, float] = {}
+        for i in range(0, len(symbols), 50):
+            chunk = symbols[i:i + 50]
+            q = {"symbols": ",".join(chunk), "feed": "iex"}
+            d = self._req(f"{DATA_HOST}/v2/stocks/trades/latest?{urllib.parse.urlencode(q)}")
+            for sym, t in (d.get("trades") or {}).items():
+                try:
+                    px = float(t.get("p") or 0)
+                except (TypeError, ValueError):
+                    px = 0.0
+                if px > 0:
+                    out[sym] = px
+        return out
+
     def option_contracts(self, underlying: str, exp_gte: str, exp_lte: str,
                          kind: str = "put", limit: int = 500) -> list[dict]:
         q = {"underlying_symbols": underlying, "expiration_date_gte": exp_gte,

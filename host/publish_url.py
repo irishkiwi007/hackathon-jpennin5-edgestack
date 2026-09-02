@@ -54,10 +54,10 @@ def github_token() -> str | None:
 
 # ---------------------------------------------------------------- page template
 def page(url: str) -> str:
-    """Two tabs on one stable address: the LIVE STRATEGY dashboard (the tunnel,
-    embedded, with a direct link kept for anyone whose browser blocks frames)
-    and the RESEARCH lab replica (/lab/, read-only, regenerated from the
-    agent's journal mirror). The tunnel URL is still the only thing that
+    """Three tabs on one stable address: LIVE (the tunnel, embedded, with a
+    direct link kept for anyone whose browser blocks frames), RESEARCH (the
+    /lab/ replica, read-only, regenerated from the agent's journal mirror) and
+    BACKTEST (the tunnel's own Backtest tab). The tunnel URL is still the only thing that
     changes between publishes, so --check keeps working."""
     return f"""<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -73,15 +73,17 @@ font:15px/1.5 'Segoe UI',system-ui,sans-serif;height:100vh;display:flex;flex-dir
 .pane{{flex:1;display:none}}.pane.on{{display:block}}
 iframe{{width:100%;height:100%;border:0;background:#0b0f14}}</style></head>
 <body><div id=hd><h1>Edge<span>Stack</span></h1><span class=tag>Evidence opens the door to opportunity.</span>
-<div id=tabs><button id=t-live class=on>Live strategy</button><button id=t-lab>Research</button></div>
+<div id=tabs><button id=t-live class=on>Live</button><button id=t-lab>Research</button><button id=t-backtest>Backtest</button></div>
 <span id=links><a href="{url}" target=_blank>open dashboard</a><a href="https://github.com/{REPO}">repository</a></span></div>
-<div id=p-live class="pane on"><iframe src="{url}" title="EdgeStack live dashboard"></iframe></div>
+<div id=p-live class="pane on"><iframe src="{url}/?embed=1#live" title="EdgeStack live dashboard"></iframe></div>
 <div id=p-lab class=pane><iframe src="https://jpennin5.github.io/edgestack/lab/" title="EdgeStack research lab (read-only)"></iframe></div>
+<div id=p-backtest class=pane><iframe src="{url}/?embed=1#backtest" title="EdgeStack backtests"></iframe></div>
 <script>
-function show(t){{for(const k of ['live','lab']){{document.getElementById('t-'+k).classList.toggle('on',k===t);
+function show(t){{for(const k of ['live','lab','backtest']){{document.getElementById('t-'+k).classList.toggle('on',k===t);
 document.getElementById('p-'+k).classList.toggle('on',k===t)}};try{{history.replaceState(null,'','#'+t)}}catch(e){{}}}}
 document.getElementById('t-live').onclick=()=>show('live');document.getElementById('t-lab').onclick=()=>show('lab');
-if(location.hash==='#lab')show('lab');
+document.getElementById('t-backtest').onclick=()=>show('backtest');
+if(location.hash==='#lab')show('lab');if(location.hash==='#backtest')show('backtest');
 </script></body></html>"""
 
 
@@ -120,7 +122,7 @@ def publish() -> int:
         # skip if unchanged (avoid commit spam)
         try:
             existing = base64.b64decode(cur.get("content", "")).decode()
-            if url in existing:
+            if existing == page(url):                   # same URL AND same template
                 print("already current:", url)
                 return 0
         except Exception:                              # noqa: BLE001

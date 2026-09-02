@@ -8,3 +8,22 @@ video/raw/
 video/cards/
 video/wav/
 video/seg/
+journal/operator_token
+journal/backtests/
+journal/live_manager/
+
+# Borrowed engine: only the submitted strategy's lineage and the benchmark are
+# public. The operator's own strategies (and candidates derived from them) are
+# live money elsewhere and stay out of this repo (engine/BORROWED.md).
+engine/strategies/*
+!engine/strategies/edgestack*.py
+!engine/strategies/bench_spy_hold.py
+engine/data/*
+!engine/data/SPY.csv
+!engine/data/SPYON.csv
+!engine/data/QQQ.csv
+!engine/data/SOXX.csv
+!engine/data/XLV.csv
+!engine/data/XLP.csv
+!engine/data/HYG.csv
+!engine/data/FDN.csv

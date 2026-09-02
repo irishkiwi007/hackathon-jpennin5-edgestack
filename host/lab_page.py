@@ -69,6 +69,77 @@ PUBLIC = {
 }
 
 
+# ------------------------------------------------------------------ privacy
+# The operator's own strategies (and the agent's candidates derived from them)
+# are PRIVATE: this page is the competition's public demo, and those are live
+# money elsewhere (2026-09-02). Only the submitted strategy's lineage and the
+# buy-and-hold benchmark may be named here. Everything else about the LAB
+# itself - containment, refusals, null calibration, discovery rates, ADRs - has
+# no strategy identity in it and is still shown.
+PUBLIC_STRATEGY_PREFIXES = ("edgestack", "bench_")
+# Symbols no public strategy trades: seeing one means the card came from a
+# private strategy's universe, whatever its family says.
+PRIVATE_SYMBOLS = ("SPXL", "TQQQ", "WPM", "FNV", "RGLD", "VLUE", "QUAL", "MTUM",
+                   "SPHB", "SPLV", "USMV", "RSP", "TLT", "IEF", "BIL")
+
+
+def _base_stem(filename):
+    """canaries_c900.py -> canaries; SPXLrealyields_c001.py -> SPXLrealyields."""
+    stem = str(filename or "")[:-3] if str(filename or "").endswith(".py") else str(filename or "")
+    return re.sub(r"(_c\d+|_manual)$", "", stem)
+
+
+def private_index(evs):
+    """Derive what must not be named, from the journal itself, so the filter
+    stays correct as the lab authors new families without anyone editing a
+    list. A family is private if ANY pre-registration in it names a strategy
+    file outside PUBLIC_STRATEGY_PREFIXES."""
+    fam_files, pub_params, priv_params = {}, set(), set()
+    for e in evs:
+        if e.get("type") != "prereg":
+            continue
+        fn = str(e.get("filename") or "")
+        fam = str(e.get("family_root") or str(e.get("id", "")).split(".")[0])
+        if fam:
+            fam_files.setdefault(fam, set()).add(fn)
+        keys = set((e.get("variant_params") or {}))
+        (pub_params if _base_stem(fn).startswith(PUBLIC_STRATEGY_PREFIXES) else priv_params).update(keys)
+    families, files = set(), set()
+    for fam, fns in fam_files.items():
+        if any(not _base_stem(f).startswith(PUBLIC_STRATEGY_PREFIXES) for f in fns):
+            families.add(fam)
+            files.update(f for f in fns if not _base_stem(f).startswith(PUBLIC_STRATEGY_PREFIXES))
+    tokens = {t for t in
+              ({_base_stem(f) for f in files} | families
+               | (priv_params - pub_params)          # a name both share is no marker
+               | set(PRIVATE_SYMBOLS)) if t}
+    return {"families": families, "files": files,
+            "rx": re.compile(r"(?<![A-Za-z0-9_])(" + "|".join(sorted(map(re.escape, tokens),
+                                                                     key=len, reverse=True))
+                             + r")(?![A-Za-z0-9_])", re.I) if tokens else None}
+
+
+def is_private(e, c, idx):
+    """True if this event/card could name a private strategy. Conservative: a
+    card is dropped whole rather than partly redacted, because free-text agent
+    reasoning cannot be safely edited into something still true."""
+    fam = e.get("family_root") or str(e.get("id", "")).split(".")[0]
+    if fam and fam in idx["families"]:
+        return True
+    for k in ("filename", "candidate", "baseline", "strategy", "stem"):
+        v = e.get(k)
+        if not isinstance(v, str) or not v.endswith(".py"):
+            continue                       # only a strategy FILE names a strategy
+        if v in idx["files"] or not _base_stem(v).startswith(PUBLIC_STRATEGY_PREFIXES):
+            return True
+    rx = idx["rx"]
+    if rx and c:
+        blob = " ".join(str(c.get(k, "")) for k in ("title", "body", "meta"))
+        if rx.search(blob):
+            return True
+    return False
+
+
 def scrub(s):
     s = str(s if s is not None else "")
     for rx, rep in SCRUB:
@@ -433,14 +504,28 @@ def main():
     path = sync_mirror()
     evs = list(events(path))
     st = stats(evs)
-    cards = collapse_sweeps([c for c in (card(e) for e in evs) if c])[-FEED_CARDS:][::-1]
+    idx = private_index(evs)
+    kept, dropped = [], 0
+    for e in evs:
+        c = card(e)
+        if not c:
+            continue
+        if is_private(e, c, idx):
+            dropped += 1
+            continue
+        kept.append(c)
+    cards = collapse_sweeps(kept)[-FEED_CARDS:][::-1]
     page = render_page(cards, st)
     for rx, _ in SCRUB:                                   # belt and braces
         assert not rx.search(page), f"redaction failed: {rx.pattern}"
+    if idx["rx"]:                                         # nothing private may be named
+        hit = idx["rx"].search(page)
+        assert not hit, f"private name leaked into the public page: {hit.group(0)}"
     os.makedirs(os.path.dirname(OUT_LOCAL), exist_ok=True)
     with open(OUT_LOCAL, "w", encoding="utf-8") as f:
         f.write(page)
-    print(f"rendered {len(cards)} cards from {st['events']} events -> {OUT_LOCAL}")
+    print(f"rendered {len(cards)} cards from {st['events']} events "
+          f"({dropped} withheld as private) -> {OUT_LOCAL}")
     if "--publish" in sys.argv:
         return publish(page)
     return 0

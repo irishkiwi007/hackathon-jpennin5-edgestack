@@ -3,6 +3,7 @@
     python host/run.py mcp        # Alpaca MCP server  (port 8000, via uvx, pinned 2.3.0)
     python host/run.py scheduler  # session scheduler  (agent entries/exits)
     python host/run.py dashboard  # live dashboard     (port 8787)
+    python host/run.py live       # Live Manager loop (deployments, kill switches)
     python host/run.py tunnel     # cloudflared quick tunnel -> public URL (self-healing)
 
 Each mode: loads .env, then keeps its process alive forever — restart on exit, with
@@ -66,6 +67,10 @@ MODES = {
     "dashboard": {
         "cmd": [sys.executable, os.path.join(ROOT, "agent", "dashboard.py")],
         "port": 8787,
+    },
+    "live": {
+        "cmd": [sys.executable, os.path.join(ROOT, "agent", "live_manager.py")],
+        "port": None,
     },
     "tunnel": {
         "cmd": [os.path.join(HERE, "bin", "cloudflared.exe"), "tunnel",

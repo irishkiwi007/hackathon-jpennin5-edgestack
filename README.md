@@ -78,12 +78,23 @@ measured three independent ways.
 cp .env.example .env            # paper keys from app.alpaca.markets
 python host/run.py mcp          # Alpaca MCP Server v2.3.0 (pinned, via uvx)
 python host/run.py scheduler    # session passes: entries 15:45 ET, exits 09:31 ET
-python host/run.py dashboard    # live status page on :8787
+python host/run.py dashboard    # dashboard on :8787 — Live / Research / Backtest tabs
+python host/run.py live         # Live Manager loop: deployments + kill switches
 python agent/run_agent.py --dry-run   # one decision pass, no orders
 ```
 
 Supervisors are ensure-running (restart on crash, never double-bind) and registered at
 logon. A Docker path for the MCP server ships in `Dockerfile`/`docker-compose.yml`.
+
+### Dashboard tabs
+
+| tab | what | writes |
+| --- | --- | --- |
+| **Live** | the competition agent (equity, gate, MCP route, positions, decision journal) and the **Live Manager**: deploy any strategy module against a slice of an account with a drawdown kill switch — the TrustyRustyEngine model (`agent/live_manager.py`): pinned module, `equity × alloc%` sizing, rebalance at the open from the same runner that backtests it, kill when model NAV falls the threshold below its since-launch high-water mark at daily/hourly/minute resolution, global kill switch, shadow mode | operator key |
+| **Research** | the read-only public replica of the research lab | none |
+| **Backtest** | the borrowed TrustyRustyEngine runner (`engine/`, see `engine/BORROWED.md`) on the submitted strategy's lineage and the buy-and-hold benchmark it must beat, with the adoption dossier behind each candidate. The operator's other strategies are private and stay in the container | operator key to run |
+
+Reads are public; anything that runs code or moves money needs the operator key (`journal/operator_token`, generated on first start, never committed). The tunnel puts the page on the open internet, so the write surface is keyed.
 
 ## The research behind it
 

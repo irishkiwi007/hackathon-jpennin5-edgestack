@@ -329,3 +329,8 @@ and that judged pipeline keeps its single writer. No public URL changed.
   (a PowerShell function shadowing git.exe, pipeline output polluting exit
   codes, and a backspace literal corrupting a path) - which is what drills
   are for.
+
+- 2026-09-02: Dashboard has Live / Research / Backtest tabs. `engine/` borrows the
+  TrustyRustyEngine runner + strategies + history (host/sync_engine.ps1 re-pulls). Live
+  Manager (agent/live_manager.py, supervised as `host/run.py live`) deploys modules at
+  alloc% with drawdown kill switches via MCP; writes need journal/operator_token.

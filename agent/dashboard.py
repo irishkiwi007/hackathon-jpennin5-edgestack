@@ -1,17 +1,30 @@
 """EdgeStack live dashboard — the submission's "live application URL".
 
-Stdlib-only HTTP server (port 8787). Serves a status page built from the same artifacts the
-agent itself writes (decision journal, state files) plus a cached live account read routed
-through the Alpaca MCP server. Nothing here can trade; it is a read-only window.
+Stdlib-only HTTP server (port 8787). Three tabs on one page:
+
+  Live      the running competition agent (journal, positions, equity, MCP route) plus the
+            Live Manager: deployments of any strategy module against an account slice with a
+            drawdown kill switch (agent/live_manager.py), exactly the TrustyRustyEngine model.
+  Research  the public read-only replica of the research lab (regenerated from the lab
+            journal mirror; never the lab itself).
+  Backtest  run the borrowed engine runner on any strategy file (agent/backtests.py) and keep
+            the results.
+
+Reads are public. Anything that runs code or moves money needs the operator key
+(journal/operator_token, generated on first start, sent as X-Operator-Token) — the tunnel
+puts this page on the open internet, so the write surface is keyed even though the process
+only ever listens on this machine.
 
     python agent/dashboard.py            # http://127.0.0.1:8787
 """
 from __future__ import annotations
 
 import datetime
+import hmac
 import html
 import json
 import os
+import secrets
 import sys
 import threading
 import time
@@ -22,6 +35,9 @@ sys.path.insert(0, HERE)
 ROOT = os.path.join(HERE, "..")
 JOURNAL = os.path.join(ROOT, "journal")
 PORT = int(os.environ.get("EDGESTACK_DASH_PORT", "8787"))
+TOKEN_PATH = os.path.join(JOURNAL, "operator_token")
+LAB_URL = "https://jpennin5.github.io/edgestack/lab/"
+DOSSIER_URL = "http://forgejo.tail054462.ts.net:3000/jacob/lab-journal/src/branch/master/reports/"
 
 _cache: dict = {"t": 0.0, "data": None}
 _lock = threading.Lock()
@@ -49,6 +65,21 @@ def _read_jsonl(path, last_n=14):
     except OSError:
         pass
     return out[-last_n:]
+
+
+def operator_token() -> str:
+    try:
+        with open(TOKEN_PATH, encoding="utf-8") as fh:
+            t = fh.read().strip()
+            if t:
+                return t
+    except OSError:
+        pass
+    os.makedirs(JOURNAL, exist_ok=True)
+    t = secrets.token_hex(16)
+    with open(TOKEN_PATH, "w", encoding="utf-8") as fh:
+        fh.write(t + "\n")
+    return t
 
 
 def collect() -> dict:
@@ -109,9 +140,19 @@ CSS = """
 --green:#34d399;--red:#f87171;--amber:#fbbf24;--acc:#60a5fa}
 *{box-sizing:border-box;margin:0}
 body{background:var(--bg);color:var(--txt);font:15px/1.55 'Segoe UI',system-ui,sans-serif;
-padding:28px;max-width:1080px;margin:0 auto}
+padding:0 28px 28px;max-width:1180px;margin:0 auto}
 h1{font-size:26px;letter-spacing:.3px} h1 span{color:var(--acc)}
 .tag{color:var(--dim);margin:4px 0 22px}
+#hd{display:flex;align-items:center;gap:18px;padding:16px 0 10px;border-bottom:1px solid var(--line);
+margin-bottom:18px;flex-wrap:wrap}
+#tabs{display:flex;gap:6px;margin-left:auto}
+#tabs button{background:var(--card);border:1px solid var(--line);color:#c9d1d9;padding:8px 16px;
+border-radius:9px;font-size:14px;cursor:pointer}
+#tabs button.on{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
+#opkey{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim)}
+#opkey input{background:#0d1219;border:1px solid var(--line);color:var(--txt);border-radius:6px;
+padding:5px 8px;width:150px;font-family:Consolas,monospace;font-size:12px}
+.pane{display:none}.pane.on{display:block}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
 .k{color:var(--dim);font-size:12px;text-transform:uppercase;letter-spacing:.8px}
@@ -120,14 +161,135 @@ h1{font-size:26px;letter-spacing:.3px} h1 span{color:var(--acc)}
 .sec{margin-top:26px}.sec h2{font-size:15px;color:var(--dim);text-transform:uppercase;
 letter-spacing:1px;margin-bottom:10px}
 table{width:100%;border-collapse:collapse;font-size:14px}
-td,th{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left}
+td,th{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
 th{color:var(--dim);font-weight:500;font-size:12px;text-transform:uppercase}
+tr.sel td{background:#0f1a2e}
 .mono{font-family:Consolas,monospace;font-size:13px}
 .pill{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12px;
 border:1px solid var(--line);margin:2px 4px 2px 0;color:var(--dim)}
 .evidence{display:flex;flex-wrap:wrap;gap:8px}
 footer{margin-top:34px;color:var(--dim);font-size:13px;border-top:1px solid var(--line);
 padding-top:14px}
+form.f{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;align-items:end}
+form.f label{display:flex;flex-direction:column;font-size:12px;color:var(--dim);gap:4px}
+form.f input,form.f select{background:#0d1219;border:1px solid var(--line);color:var(--txt);
+border-radius:6px;padding:7px 8px;font-size:13px}
+form.f .full{grid-column:1/-1}
+button.b{background:#1d4ed8;border:0;color:#fff;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px}
+button.b.danger{background:#991b1b}button.b.ghost{background:var(--card);border:1px solid var(--line);color:#c9d1d9}
+button.b:disabled{opacity:.5;cursor:not-allowed}
+.small{font-size:12px;color:var(--dim)}
+#msg{position:fixed;right:18px;bottom:18px;background:#1f2937;color:#fff;padding:10px 14px;border-radius:8px;
+font-size:13px;display:none;max-width:420px;border:1px solid #374151}
+iframe.lab{width:100%;height:calc(100vh - 140px);border:1px solid var(--line);border-radius:12px;background:#0b0f14}
+svg.chart{width:100%;height:260px;background:#0d1219;border:1px solid var(--line);border-radius:10px}
+.params{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.params label{font-size:11px;color:var(--dim);display:flex;flex-direction:column;gap:3px}
+.params input{background:#0d1219;border:1px solid var(--line);color:var(--txt);border-radius:6px;padding:5px 7px;font-size:12px}
+a{color:var(--acc)}
+"""
+
+JS = r"""
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const EMBED=new URLSearchParams(location.search).get('embed')==='1';
+function show(t){for(const k of ['live','research','backtest']){$('#t-'+k).classList.toggle('on',k===t);$('#p-'+k).classList.toggle('on',k===t)}
+ try{history.replaceState(null,'','#'+t)}catch(e){} if(t==='backtest')loadBacktest(); if(t==='live')loadLive();}
+for(const k of ['live','research','backtest'])$('#t-'+k).onclick=()=>show(k);
+if(EMBED)$('#tabs').style.display='none';
+const key=()=>{try{return localStorage.getItem('opkey')||''}catch(e){return ''}};
+try{$('#opkey input').value=key()}catch(e){}
+$('#opkey input').onchange=e=>{try{localStorage.setItem('opkey',e.target.value.trim())}catch(x){} note('operator key stored in this browser')};
+function note(m,bad){const b=$('#msg');b.textContent=m;b.style.display='block';b.style.borderColor=bad?'#f87171':'#374151';clearTimeout(b._t);b._t=setTimeout(()=>b.style.display='none',6000)}
+async function api(path,method='GET',body){const r=await fetch(path,{method,headers:{'Content-Type':'application/json','X-Operator-Token':key()},body:body?JSON.stringify(body):undefined});
+ const j=await r.json().catch(()=>({error:'bad json'})); if(!r.ok){throw new Error(j.error||('HTTP '+r.status))} return j}
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pct=x=>(x==null||isNaN(x))?'—':(100*x).toFixed(1)+'%', num=(x,d=2)=>(x==null||isNaN(x))?'—':Number(x).toFixed(d);
+let STRATS=[], RESULTS=[], SEL=null;
+
+/* ---------------- Backtest tab ---------------- */
+async function loadBacktest(){
+ try{const s=await api('/api/strategies'); STRATS=s.strategies; renderStrats(s);}catch(e){note('strategies: '+e.message,true)}
+ try{const r=await api('/api/backtests'); RESULTS=r.results; renderResults();}catch(e){note('results: '+e.message,true)}
+}
+function renderStrats(s){
+ const sel=$('#bt-strategy'); const cur=sel.value; sel.innerHTML=STRATS.map(x=>`<option value="${esc(x.name)}">${esc(x.name)} · ${x.kind}</option>`).join('');
+ if(cur)sel.value=cur; paramInputs('#bt-params',sel.value);
+ const dsel=$('#dp-stem'); dsel.innerHTML=sel.innerHTML; if(cur)dsel.value=cur; paramInputs('#dp-params',dsel.value);
+ $('#bt-strats').innerHTML=STRATS.map(x=>`<tr><td class=mono>${esc(x.name)}</td><td>${x.kind}</td><td class=mono>${esc((x.symbols||[]).join(' '))}</td><td>${Object.keys(x.params||{}).length}</td>
+  <td>${(x.dossiers||[]).map(d=>`<a href="${DOSSIER}${esc(d)}.md" target=_blank>${esc(d)}</a>`).join(', ')||'<span class=small>—</span>'}</td>
+  <td>${x.error?'<span class=bad>'+esc(x.error.slice(0,80))+'</span>':'<span class=ok>ok</span>'}</td></tr>`).join('');
+ const ds=s.data||{}; $('#bt-data').textContent=Object.entries(ds).map(([k,v])=>k+' → '+v).join(' · ');
+}
+function paramInputs(box,name){const st=STRATS.find(x=>x.name===name); const p=(st&&st.params)||{};
+ $(box).innerHTML=Object.entries(p).map(([k,v])=>`<label>${esc(k)} <span class=small>(${esc(v.type)})</span><input name="${esc(k)}" placeholder="${esc(v.default)}" title="${esc(v.description||'')}"></label>`).join('')||'<span class=small>no parameters</span>';}
+$('#bt-strategy').onchange=e=>paramInputs('#bt-params',e.target.value);
+$('#dp-stem').onchange=e=>paramInputs('#dp-params',e.target.value);
+function overrides(box){const o={}; $$('input',$(box)).forEach(i=>{if(i.value.trim()!==''){const v=i.value.trim(); o[i.name]=isNaN(Number(v))?v:Number(v)}}); return o}
+$('#bt-form').onsubmit=async e=>{e.preventDefault(); const f=e.target; const body={strategy:$('#bt-strategy').value,start_date:f.start.value,end_date:f.end.value,
+ initial_capital:+f.capital.value||100000,slippage_bps:+f.slip.value||0,commission_bps:+f.comm.value||0,param_overrides:overrides('#bt-params')};
+ try{const r=await api('/api/backtests/run','POST',body); note('backtest started '+r.id); pollResults(r.id)}catch(x){note(x.message,true)}};
+async function pollResults(id){for(let i=0;i<120;i++){await new Promise(r=>setTimeout(r,2500)); try{const r=await api('/api/backtests'); RESULTS=r.results; renderResults();
+ const row=RESULTS.find(x=>x.id===id); if(row&&row.status!=='running'){selectResult(id); return}}catch(e){}}}
+function renderResults(){$('#bt-results').innerHTML=RESULTS.map(r=>{const m=r.metrics||{};
+ return `<tr class="${SEL===r.id?'sel':''}" onclick="selectResult('${r.id}')" style="cursor:pointer"><td class=mono>${esc(r.created).slice(0,16)}</td><td class=mono>${esc(r.strategy)}</td>
+ <td>${r.status==='running'?'<span class=warn>running</span>':r.status==='error'?'<span class=bad>error</span>':'<span class=ok>done</span>'}</td>
+ <td>${pct(m.cagr)}</td><td>${pct(m.total_return)}</td><td>${pct(m.max_drawdown)}</td><td>${num(m.sharpe_ratio)}</td><td>${m.total_trades??'—'}</td><td class=small>${esc(r.options&&r.options.start_date||'')}→${esc(r.options&&r.options.end_date||'')}</td></tr>`}).join('')||'<tr><td colspan=9 class=small>no backtests yet</td></tr>'}
+async function selectResult(id){SEL=id; renderResults(); try{const r=await api('/api/backtests/'+id); drawResult(r)}catch(e){note(e.message,true)}}
+window.selectResult=selectResult;
+function drawResult(r){const box=$('#bt-detail'); const m=r.metrics||{};
+ if(r.status==='error'){box.innerHTML=`<div class=card><b class=bad>error</b><pre class=mono style="white-space:pre-wrap">${esc(r.error)}</pre></div>`;return}
+ const rows=[['CAGR',pct(m.cagr)],['total return',pct(m.total_return)],['max drawdown',pct(m.max_drawdown)],['Sharpe',num(m.sharpe_ratio)],['win rate',pct(m.win_rate)],['profit factor',num(m.profit_factor)],['trades',m.total_trades],['span',(m.start_date||'')+' → '+(m.end_date||'')],['fills',r.fills],['elapsed',(r.elapsed_s||0)+'s']];
+ box.innerHTML=`<div class=card><div class=k>${esc(r.strategy)} · ${esc(r.id)}</div>
+  <div class=grid style="margin:10px 0">${rows.map(([k,v])=>`<div><div class=k>${k}</div><div class=v style="font-size:17px">${esc(v)}</div></div>`).join('')}</div>
+  ${chart(r.equity_curve||[],r.benchmark_curve||[])}
+  <div class=small style="margin-top:8px">blue: strategy · grey: SPY buy-and-hold anchored at the first live bar · params used: <span class=mono>${esc(JSON.stringify(r.params||{}))}</span></div>
+  <div class=small>final target weights (last bar): <span class=mono>${esc(JSON.stringify(r.final_weights||{}))}</span></div>
+  <div style="margin-top:10px"><button class=b onclick="prefillDeploy('${esc(r.strategy)}',${esc(JSON.stringify(JSON.stringify(r.params||{})))})">Deploy this strategy…</button></div></div>`}
+function chart(a,b){if(a.length<2)return '<div class=small>no equity curve</div>'; const W=1000,H=260,P=28; const all=a.concat(b).map(p=>p.equity); const lo=Math.min(...all),hi=Math.max(...all);
+ const x=(i,n)=>P+(W-2*P)*i/(n-1), y=v=>H-P-(H-2*P)*(v-lo)/((hi-lo)||1);
+ const path=(s)=>s.map((p,i)=>(i?'L':'M')+x(i,s.length).toFixed(1)+' '+y(p.equity).toFixed(1)).join(' ');
+ return `<svg class=chart viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${path(b)}" fill=none stroke="#4b5563" stroke-width=1.5/><path d="${path(a)}" fill=none stroke="#60a5fa" stroke-width=2/>
+ <text x=${P} y=${P-8} fill="#8b98a9" font-size=12>${esc(a[0].date)}</text><text x=${W-P} y=${P-8} fill="#8b98a9" font-size=12 text-anchor=end>${esc(a[a.length-1].date)}</text>
+ <text x=${W-P} y=${H-6} fill="#8b98a9" font-size=12 text-anchor=end>${lo.toLocaleString()} – ${hi.toLocaleString()}</text></svg>`}
+window.prefillDeploy=(stem,paramsJson)=>{show('live'); $('#dp-stem').value=stem; paramInputs('#dp-params',stem); try{const p=JSON.parse(paramsJson); $$('input',$('#dp-params')).forEach(i=>{if(p[i.name]!=null)i.value=p[i.name]})}catch(e){} $('#dp-form').scrollIntoView({behavior:'smooth'})};
+
+/* ---------------- Live tab: deployments ---------------- */
+async function loadLive(){try{const s=await api('/api/live/status'); renderLive(s)}catch(e){note('live manager: '+e.message,true)}
+ if(!STRATS.length){try{const s=await api('/api/strategies'); STRATS=s.strategies; const dsel=$('#dp-stem'); dsel.innerHTML=STRATS.map(x=>`<option value="${esc(x.name)}">${esc(x.name)} · ${x.kind}</option>`).join(''); paramInputs('#dp-params',dsel.value)}catch(e){}}}
+function renderLive(s){
+ $('#lm-loop').innerHTML=s.loop_alive?'<span class=ok>&#9679; manager loop alive</span>':'<span class=warn>&#9679; manager loop not running (host/run.py live)</span>';
+ $('#lm-kill').innerHTML=s.kill_switch?`<span class=bad><b>GLOBAL KILL SWITCH ARMED</b> — no order leaves this machine</span> <button class="b ghost" onclick="killSwitch(false)">disarm</button>`
+  :`<span class=ok>kill switch disarmed</span> <button class="b danger" onclick="killSwitch(true)">ARM global kill switch</button>`;
+ const acc=$('#dp-account'); acc.innerHTML=s.accounts.map(a=>`<option value="${esc(a.id)}">${esc(a.label)}${a.credentials_ok?'':' (no credentials)'}</option>`).join('');
+ $('#lm-accounts').innerHTML=s.accounts.map(a=>`<span class=pill>${esc(a.label)} · ${a.is_paper?'paper':'LIVE'} · key ${esc(a.key_hint)} · ${a.credentials_ok?'<span class=ok>ok</span>':'<span class=bad>no creds</span>'}</span>`).join('');
+ const rows=s.deployments.map(d=>{const st=d.status||{}; const cls=st.state==='active'?'ok':st.state==='killed'?'bad':'warn'; const m=d.metrics||{};
+  const pos=Object.entries(d.positions||{}).filter(([k,v])=>v).map(([k,v])=>k+'×'+v).join(' ')||'flat';
+  return `<tr><td><b>${esc(d.display_name)}</b><div class=small class=mono>${esc(d.stem)} · ${esc((d.module_hash||'').slice(0,10))}</div></td>
+   <td>${d.mode==='live'?`live · ${esc(d.account_id)} · ${d.alloc_pct}%`:`shadow · $${(d.shadow_capital||0).toLocaleString()}`}</td>
+   <td class="${cls}">${esc(st.state)}${st.reason?'<div class=small>'+esc(st.reason)+'</div>':''}${d.pending_flatten?'<div class=small>flatten pending (next open)</div>':''}${d.pending_targets?'<div class=small>rebalance pending: '+esc(JSON.stringify(d.pending_targets))+'</div>':''}</td>
+   <td class=mono>${esc(pos)}</td>
+   <td>${d.rule?`${d.rule.threshold_pct}% / ${d.rule.resolution}`:'<span class=small>none</span>'}${d.dd_pct!=null?'<div class=small>dd now '+d.dd_pct+'%</div>':''}${d.rule_alert?'<div class=warn style="font-size:12px">'+esc(d.rule_alert)+'</div>':''}</td>
+   <td>${d.last_nav!=null?'$'+Number(d.last_nav).toLocaleString():'—'}<div class=small>hwm ${d.hwm?Number(d.hwm).toLocaleString():'—'} · ret ${pct(m.total_return)} · maxDD ${pct(m.max_drawdown)}</div></td>
+   <td class=small>${esc(d.last_model_run||'—')}${d.last_error?'<div class=bad>'+esc(d.last_error.slice(0,120))+'</div>':''}</td>
+   <td>${st.state==='active'?`<button class="b ghost" onclick="stopDep('${d.id}')">■ stop</button>`:`<button class="b ghost" onclick="purgeDep('${d.id}')">purge</button>`}
+    <button class="b ghost" onclick="ruleDep('${d.id}')">rule…</button></td></tr>`}).join('');
+ $('#lm-deps').innerHTML=rows||'<tr><td colspan=8 class=small>no deployments yet — launch a module below (live against an account slice, or shadow-tracked virtually)</td></tr>';
+ $('#lm-journal').innerHTML=(s.journal||[]).slice().reverse().slice(0,12).map(e=>`<tr><td class=mono>${esc(e.ts).slice(0,19)}</td><td>${esc(e.type)}</td><td class="small mono">${esc(JSON.stringify(Object.fromEntries(Object.entries(e).filter(([k])=>!['ts','type'].includes(k))))).slice(0,220)}</td></tr>`).join('');
+}
+window.killSwitch=async armed=>{if(armed&&!confirm('Arm the GLOBAL kill switch? No order will leave this machine until disarmed.'))return; try{await api('/api/live/kill',armed?'POST':'DELETE'); loadLive()}catch(e){note(e.message,true)}};
+window.stopDep=async id=>{if(!confirm('Stop this deployment and flatten its positions at the next opportunity?'))return; try{await api('/api/live/deployments/'+id,'DELETE'); loadLive()}catch(e){note(e.message,true)}};
+window.purgeDep=async id=>{if(!confirm('Remove this deployment record?'))return; try{await api('/api/live/deployments/'+id+'/purge','DELETE'); loadLive()}catch(e){note(e.message,true)}};
+window.ruleDep=async id=>{const t=prompt('Max-drawdown kill threshold % (blank = remove rule)'); if(t===null)return; const res=t?(prompt('Resolution: daily, hourly or minute','daily')||'daily'):'daily';
+ try{await api('/api/live/deployments/'+id+'/rules','POST',t?{threshold_pct:+t,resolution:res}:{}); loadLive()}catch(e){note(e.message,true)}};
+$('#dp-mode').onchange=e=>{$('#dp-livefields').style.display=e.target.value==='live'?'contents':'none'};
+$('#dp-form').onsubmit=async e=>{e.preventDefault(); const f=e.target; const body={stem:$('#dp-stem').value,display_name:f.dname.value,mode:$('#dp-mode').value,account_id:$('#dp-account').value,
+ alloc_pct:+f.alloc.value,shadow_capital:+f.shadow.value,params:overrides('#dp-params'),rule:{threshold_pct:+f.thr.value,resolution:f.res.value},confirm_competition:f.confirm.checked,force:f.force.checked};
+ if(body.mode==='live'&&!confirm(`Launch LIVE on '${body.account_id}' at ${body.alloc_pct}% of equity?`))return;
+ try{const r=await api('/api/live/deployments','POST',body); note('launched '+r.display_name+' ('+r.mode+')'); loadLive()}catch(x){note(x.message,true)}};
+
+/* ---------------- boot ---------------- */
+const h=(location.hash||'#live').slice(1); show(['live','research','backtest'].includes(h)?h:'live');
+setInterval(()=>{if(document.activeElement&&['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName))return; if($('#p-live').classList.contains('on'))location.reload()},90000);
 """
 
 
@@ -135,7 +297,7 @@ def esc(x) -> str:
     return html.escape(str(x))
 
 
-def render(d: dict) -> str:
+def render_live(d: dict) -> str:
     a = d["account"]
     eq = a["equity"]
     pnl = eq - 100_000.0
@@ -146,8 +308,6 @@ def render(d: dict) -> str:
     core = d["equity_state"].get("core")
     sleeve = d["equity_state"].get("sleeve") or []
     opts = d["option_trades"] or []
-    alive_cls, alive_txt = (("ok", "LIVE") if d["scheduler_alive"]
-                            else ("warn", "IDLE"))
     mcp_ok = any("via MCP" in r or "mcp: connected" in r for r in d["broker_routes"])
     # The routing flag above describes the LAST pass; judges see this card
     # between passes, so also probe the server itself (2026-09-02).
@@ -196,10 +356,7 @@ def render(d: dict) -> str:
     if not pos_rows:
         pos_rows = "<tr><td colspan=4 style='color:var(--dim)'>flat — waiting for signals that clear the gates</td></tr>"
 
-    return f"""<!doctype html><html><head><meta charset="utf-8">
-<meta http-equiv="refresh" content="90"><title>EdgeStack</title>
-<style>{CSS}</style></head><body>
-<h1>Edge<span>Stack</span> <span style="font-size:13px" class="{alive_cls}">&#9679; {alive_txt}</span></h1>
+    return f"""
 <p class="tag">Evidence opens the door to opportunity &middot; 33 years of evidence, three
 backtest engines, one graveyard &middot; Alpaca paper account <span class="mono">{esc(a['number'])}</span></p>
 
@@ -232,30 +389,185 @@ disjoint windows 0.80&rarr;0.98 / 0.65&rarr;1.02</span>
 <div class="sec"><h2>Decision journal (latest sessions)</h2>
 <table><tr><th>session</th><th>signals</th><th>what happened &amp; why</th></tr>{rows}</table></div>
 
+<div class="sec"><h2>Live Manager — deployments</h2>
+<div class="small" style="margin-bottom:8px">Deploy any strategy module against a slice of an account with a drawdown kill switch,
+the TrustyRustyEngine model: the module is pinned at launch, sized to <i>equity &times; alloc%</i>, rebalanced at the open
+from the SAME runner that backtests it, and killed (flattened) when its model NAV falls the threshold below its since-launch
+high-water mark at the chosen bar resolution. Orders route through the Alpaca MCP server. Writes need the operator key.</div>
+<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:8px"><span id="lm-loop"></span><span id="lm-kill"></span></div>
+<div id="lm-accounts" style="margin-bottom:8px"></div>
+<table><tr><th>deployment</th><th>mode</th><th>status</th><th>model positions</th><th>kill rule</th><th>model NAV</th><th>model run</th><th></th></tr>
+<tbody id="lm-deps"></tbody></table>
+<form id="dp-form" class="f card" style="margin-top:14px">
+<label>strategy module<select id="dp-stem"></select></label>
+<label>display name<input name="dname" placeholder="optional"></label>
+<label>mode<select id="dp-mode"><option value="shadow">shadow (virtual ledger, never traded)</option><option value="live">live (orders via MCP)</option></select></label>
+<label>shadow capital $<input name="shadow" type="number" value="2500" min="100" step="100"></label>
+<div id="dp-livefields" style="display:none">
+<label>account<select id="dp-account"></select></label>
+<label>allocation % of equity<input name="alloc" type="number" value="10" min="0.1" max="100" step="0.1"></label>
+<label class="small" style="flex-direction:row;align-items:center;gap:6px"><input name="confirm" type="checkbox"> I understand a live deployment on the competition account changes the judged P&amp;L</label>
+<label class="small" style="flex-direction:row;align-items:center;gap:6px"><input name="force" type="checkbox"> allow the account's total allocation past 100%</label>
+</div>
+<label>kill: max drawdown % from launch HWM<input name="thr" type="number" value="5" min="0" step="0.5" placeholder="0 = no rule"></label>
+<label>checked at each close of<select name="res"><option value="daily">daily bars</option><option value="hourly">hourly bars</option><option value="minute">minute bars</option></select></label>
+<div class="full"><div class="k" style="margin-bottom:6px">parameter overrides (blank = strategy default)</div><div id="dp-params" class="params"></div></div>
+<div class="full"><button class="b" type="submit">Launch deployment</button> <span class="small">nothing trades until the next open (09:35 ET); a launch during hours rebalances at the next tick</span></div>
+</form>
+<div class="sec"><h2>Live Manager journal</h2><table><tbody id="lm-journal"></tbody></table></div>
+</div>
+
 <footer>Generated {esc(d['generated'])} &middot; auto-refresh 90s &middot;
 routes: {esc('; '.join(d['broker_routes'][-2:]))} &middot;
 no-trade sessions are the gates working — the journal records every refusal with its reason.
-</footer></body></html>"""
+</footer>"""
 
 
+BACKTEST_PANE = """
+<p class="tag">The borrowed TrustyRustyEngine runner (T+1 open fills, 5+5 bps costs, SPY benchmark) on any strategy file
+in <span class="mono">engine/strategies</span> — the lab's baselines, the agent's candidates, and the benchmark they must beat.
+Running needs the operator key; results are public.</p>
+<form id="bt-form" class="f card">
+<label>strategy<select id="bt-strategy"></select></label>
+<label>start<input name="start" type="date" value="2015-01-01"></label>
+<label>end<input name="end" type="date" value="2024-12-31"></label>
+<label>capital $<input name="capital" type="number" value="100000" step="1000"></label>
+<label>slippage bps<input name="slip" type="number" value="5"></label>
+<label>commission bps<input name="comm" type="number" value="5"></label>
+<div class="full"><div class="k" style="margin-bottom:6px">parameter overrides (blank = strategy default)</div><div id="bt-params" class="params"></div></div>
+<div class="full"><button class="b" type="submit">Run backtest</button> <span class="small">the lab's sealed holdout starts 2025-01-01; keep research windows before it</span></div>
+</form>
+<div class="sec"><h2>Results</h2>
+<table><tr><th>when</th><th>strategy</th><th>status</th><th>CAGR</th><th>return</th><th>max DD</th><th>Sharpe</th><th>trades</th><th>window</th></tr><tbody id="bt-results"></tbody></table></div>
+<div class="sec" id="bt-detail"></div>
+<div class="sec"><h2>Strategies</h2>
+<table><tr><th>file</th><th>kind</th><th>universe</th><th>params</th><th>adoption dossiers</th><th>inspect</th></tr><tbody id="bt-strats"></tbody></table>
+<div class="small" style="margin-top:8px">history: <span id="bt-data" class="mono"></span></div></div>
+"""
+
+PAGE = """<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EdgeStack</title><style>@@CSS@@</style></head><body>
+<div id="hd"><h1>Edge<span>Stack</span> <span style="font-size:13px" class="@@ALIVE_CLS@@">&#9679; @@ALIVE_TXT@@</span></h1>
+<div id="tabs"><button id="t-live">Live</button><button id="t-research">Research</button><button id="t-backtest">Backtest</button></div>
+<span id="opkey">operator key <input type="password" placeholder="journal/operator_token" autocomplete="off"></span></div>
+<div id="p-live" class="pane">@@LIVE@@</div>
+<div id="p-research" class="pane"><p class="tag">The research agent's lab, read-only: a public replica regenerated from the lab journal mirror.
+The lab itself, its engine and the Claude subscription behind it are not reachable from this page.</p>
+<iframe class="lab" src="@@LAB_URL@@" title="EdgeStack research lab (read-only)"></iframe>
+<p class="small"><a href="@@LAB_URL@@" target="_blank">open the research replica in its own tab</a></p></div>
+<div id="p-backtest" class="pane">@@BACKTEST@@</div>
+<div id="msg"></div>
+<script>const DOSSIER=@@DOSSIER@@;@@JS@@</script></body></html>"""
+
+
+def render(d: dict) -> str:
+    alive_cls, alive_txt = (("ok", "LIVE") if d["scheduler_alive"] else ("warn", "IDLE"))
+    return (PAGE.replace("@@CSS@@", CSS).replace("@@JS@@", JS)
+            .replace("@@ALIVE_CLS@@", alive_cls).replace("@@ALIVE_TXT@@", alive_txt)
+            .replace("@@LIVE@@", render_live(d)).replace("@@BACKTEST@@", BACKTEST_PANE)
+            .replace("@@LAB_URL@@", LAB_URL).replace("@@DOSSIER@@", json.dumps(DOSSIER_URL)))
+
+
+# ------------------------------------------------------------------- HTTP
 class Handler(BaseHTTPRequestHandler):
-    def do_GET(self):                                  # noqa: N802
+    def _send(self, code: int, body, ctype="application/json"):
+        if not isinstance(body, (bytes, str)):
+            body = json.dumps(body, default=str)
+        if isinstance(body, str):
+            body = body.encode()
+        self.send_response(code)
+        self.send_header("Content-Type", ctype if ctype != "application/json" else "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _authed(self) -> bool:
+        given = self.headers.get("X-Operator-Token", "")
+        return bool(given) and hmac.compare_digest(given, operator_token())
+
+    def _body(self) -> dict:
+        n = int(self.headers.get("Content-Length") or 0)
+        if n <= 0 or n > 200_000:
+            return {}
         try:
-            if self.path.startswith("/api"):
-                body = json.dumps(collect(), indent=1).encode()
-                ctype = "application/json"
-            else:
-                body = render(collect()).encode()
-                ctype = "text/html; charset=utf-8"
-            self.send_response(200)
-            self.send_header("Content-Type", ctype)
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
+            return json.loads(self.rfile.read(n).decode() or "{}")
+        except ValueError:
+            return {}
+
+    def do_GET(self):                                  # noqa: N802
+        path = self.path.split("?", 1)[0]
+        try:
+            if path == "/api" or path == "/api/":
+                return self._send(200, json.dumps(collect(), indent=1))
+            if path == "/api/strategies":
+                import backtests
+                return self._send(200, {"strategies": backtests.strategies(),
+                                        "data": backtests.data_status()})
+            if path == "/api/backtests":
+                import backtests
+                return self._send(200, {"results": backtests.results()})
+            if path.startswith("/api/backtests/"):
+                import backtests
+                rec = backtests.get(path.rsplit("/", 1)[-1])
+                return self._send(200 if rec else 404, rec or {"error": "no such backtest"})
+            if path == "/api/live/status":
+                import live_manager
+                return self._send(200, live_manager.status())
+            if path.startswith("/api"):
+                return self._send(404, {"error": "no such route"})
+            return self._send(200, render(collect()), "text/html; charset=utf-8")
         except Exception as exc:                       # noqa: BLE001
-            self.send_response(500)
-            self.end_headers()
-            self.wfile.write(str(exc).encode())
+            return self._send(500, {"error": str(exc)[:500]})
+
+    def do_POST(self):                                 # noqa: N802
+        path = self.path.split("?", 1)[0]
+        if not self._authed():
+            return self._send(403, {"error": "operator key required (journal/operator_token)"})
+        body = self._body()
+        try:
+            if path == "/api/backtests/run":
+                import backtests
+                bt_id = backtests.run(str(body.get("strategy") or ""), body)
+                return self._send(202, {"id": bt_id})
+            import live_manager
+            if path == "/api/live/deployments":
+                return self._send(201, live_manager.deploy(body))
+            if path == "/api/live/kill":
+                live_manager.set_kill_switch(True)
+                return self._send(200, {"kill_switch": True})
+            if path == "/api/live/accounts":
+                return self._send(201, live_manager.upsert_account(body))
+            if path.startswith("/api/live/deployments/") and path.endswith("/rules"):
+                dep_id = path.split("/")[4]
+                return self._send(200, live_manager.set_rule(dep_id, body or None))
+            return self._send(404, {"error": "no such route"})
+        except (ValueError, FileNotFoundError, KeyError) as exc:
+            return self._send(400, {"error": str(exc)[:500]})
+        except Exception as exc:                       # noqa: BLE001
+            return self._send(500, {"error": str(exc)[:500]})
+
+    def do_DELETE(self):                               # noqa: N802
+        path = self.path.split("?", 1)[0]
+        if not self._authed():
+            return self._send(403, {"error": "operator key required (journal/operator_token)"})
+        try:
+            import live_manager
+            if path == "/api/live/kill":
+                live_manager.set_kill_switch(False)
+                return self._send(200, {"kill_switch": False})
+            if path.startswith("/api/live/deployments/"):
+                parts = path.split("/")
+                dep_id = parts[4]
+                if path.endswith("/purge"):
+                    live_manager.purge(dep_id)
+                    return self._send(200, {"purged": dep_id})
+                return self._send(200, live_manager.stop(dep_id))
+            return self._send(404, {"error": "no such route"})
+        except (ValueError, KeyError) as exc:
+            return self._send(400, {"error": str(exc)[:500]})
+        except Exception as exc:                       # noqa: BLE001
+            return self._send(500, {"error": str(exc)[:500]})
 
     def do_HEAD(self):                                 # noqa: N802 — probes use HEAD
         self.send_response(200)
@@ -267,5 +579,6 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    print(f"EdgeStack dashboard on http://127.0.0.1:{PORT}")
+    operator_token()
+    print(f"EdgeStack dashboard on http://127.0.0.1:{PORT}  (operator key: {TOKEN_PATH})")
     ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()

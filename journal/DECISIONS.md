@@ -4,6 +4,16 @@ Capitulation-reversal strategy. The model proposes; `risk_gates.py` disposes.
 Every session is recorded, including the majority that do not trade.
 
 ## 2026-09-02
+
+### ADR — Backtest tab and Live Manager borrow the TrustyRustyEngine, not a re-implementation
+
+**Decision.** `engine/` is a verbatim copy of the container engine's strategy contract, bar-by-bar runner, inspector, the lab's strategy files and the CSV history they reference (`engine/BORROWED.md`). The dashboard's Backtest tab runs that runner as a subprocess exactly as the Rust API server does. The Live Manager (`agent/live_manager.py`) ports the engine's Live Manager model: pinned modules, `equity × alloc%` slices, a `max_drawdown_kill` rule with bar-resolution semantics (the HWM only advances on observations at the rule's resolution), shadow deployments, a global kill switch, and orders through the same Alpaca MCP route as the competition agent. The runner gained one addition — `final_weights` in its result — so a deployment is driven by the same code path that backtested it.
+
+**Why.** One engine, one fill model, one set of numbers: a candidate that adopts in the lab, backtests here, and deploys here is the same strategy at every step.
+
+**Safety.** The page is on the open internet through the tunnel, so every write (run a backtest, deploy, stop, arm the kill switch) requires the operator key in `journal/operator_token` (generated locally, git-ignored). Account profiles hold env-var NAMES, never secrets, and are paper-only by construction. A live deployment on the competition account requires an explicit confirmation because it changes the judged P&L; shadow is the default mode. A deployment flattens only positions it put on itself.
+
+## 2026-09-02
 Equity $100,000 · open positions 0
 
 **No signal.** Nothing met `stretch < -2.5` with volume >= 1.4x.
