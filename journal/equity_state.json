@@ -1,19 +1,20 @@
 {
   "core": null,
   "sleeve": [],
-  "pending_fills": [
+  "pending_fills": [],
+  "slippage": [
     {
-      "order_id": "49289eaf-08c7-458b-8255-000d228865aa",
+      "date": "2026-09-01",
       "symbol": "SGOV",
       "side": "buy",
+      "kind": "bills_entry",
       "qty": 697,
       "ref_px": 100.405,
-      "ref_source": "sizing_price",
-      "kind": "bills_entry",
-      "submitted": "2026-09-01"
+      "fill_px": 100.41,
+      "slippage_bps": 0.5,
+      "ref_source": "sizing_price"
     }
   ],
-  "slippage": [],
   "parked": {
     "qty": 697,
     "entry_date": "2026-09-01",

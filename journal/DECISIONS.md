@@ -3,6 +3,20 @@
 Capitulation-reversal strategy. The model proposes; `risk_gates.py` disposes.
 Every session is recorded, including the majority that do not trade.
 
+## 2026-09-02
+Equity $100,000 · open positions 0
+
+**No signal.** Nothing met `stretch < -2.5` with volume >= 1.4x.
+
+**Actions**
+
+- fill_reconciled: SGOV buy x697 (bills_entry) ref 100.41 -> fill 100.41 = +0.50bps vs sizing price
+- slippage_running: 1 fills measured, mean +0.50bps vs sizing price (overnight-core breakeven is 0.3-0.6bps/night round trip)
+
+> exit management pass
+
+---
+
 ## 2026-09-01
 Equity $100,000 · open positions 0
 
