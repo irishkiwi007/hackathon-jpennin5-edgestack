@@ -143,8 +143,15 @@ def card(e):
             f"parent {e['parent']}" if e.get("parent") else "",
             (f"predicts train {_num(pred.get('train'))} / valid {_num(pred.get('valid'))}"
              if pred else "")]))
-        return {**base, "kind": "prereg", "title": f"Pre-registered {e.get('id', '')}",
+        card = {**base, "kind": "prereg", "title": f"Pre-registered {e.get('id', '')}",
                 "body": e.get("motivation", ""), "meta": meta}
+        if e.get("sweep_of"):
+            card["sweep_of"] = e["sweep_of"]
+            card["variant_line"] = (f"{str(e.get('id', '')).rsplit('.', 1)[-1]}: "
+                                    f"{json.dumps(e.get('variant_params', {}), separators=(',', '='))}"
+                                    + (f" \u00b7 predicts train {_num(pred.get('train'))} / valid "
+                                       f"{_num(pred.get('valid'))}" if pred else ""))
+        return card
     if t == "verdict":
         v = str(e.get("verdict", ""))
         kind = "adopt" if v.startswith("ADOPT") else "reject" if v.startswith("REJECT") else "insuff"
@@ -253,6 +260,30 @@ def card(e):
                 "body": ("PASS" if e.get("pass") else "FAIL") if t == "holdout_audit"
                 else e.get("note") or e.get("reason") or "", "meta": e.get("family", "")}
     return None
+
+
+def collapse_sweeps(cards):
+    """One card per dose sweep. A `propose` with `variants` registers N
+    hypotheses (<id>.v1..vN) that share one motivation; each is a complete
+    record in the journal, but showing the same paragraph N times reads as a
+    bug (2026-09-02). Adjacent prereg cards with the same sweep_of merge into
+    a single card listing every variant and its prediction."""
+    out = []
+    for c in cards:
+        prev = out[-1] if out else None
+        if (c.get("kind") == "prereg" and c.get("sweep_of") and prev
+                and prev.get("kind") == "prereg" and prev.get("sweep_of") == c["sweep_of"]):
+            prev.setdefault("variants", [prev.get("variant_line", "")])
+            prev["variants"].append(c.get("variant_line", ""))
+            n = len(prev["variants"])
+            prev["title"] = f"Pre-registered {c['sweep_of']} \u2014 dose sweep, {n} variants"
+            prev["meta"] = "\n".join(prev["variants"])
+            prev["seq"] = f"{prev.get('seq_first', prev.get('seq'))}\u2013{c.get('seq')}"
+            continue
+        if c.get("kind") == "prereg" and c.get("sweep_of"):
+            c["seq_first"] = c.get("seq")
+        out.append(c)
+    return out
 
 
 # ------------------------------------------------------------------- stats
@@ -365,7 +396,7 @@ def main():
     path = sync_mirror()
     evs = list(events(path))
     st = stats(evs)
-    cards = [c for c in (card(e) for e in evs) if c][-FEED_CARDS:][::-1]
+    cards = collapse_sweeps([c for c in (card(e) for e in evs) if c])[-FEED_CARDS:][::-1]
     page = render_page(cards, st)
     for rx, _ in SCRUB:                                   # belt and braces
         assert not rx.search(page), f"redaction failed: {rx.pattern}"
