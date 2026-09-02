@@ -51,7 +51,8 @@ def port_up(port: int) -> bool:
 
 MODES = {
     "mcp": {
-        "cmd": ["uvx", "--python", "3.11", "alpaca-mcp-server==2.3.0",
+        "cmd": ["uvx", "--python", "3.11", "--with", "fastmcp==3.4.7",
+                "alpaca-mcp-server==2.3.0",
                 "--transport", "streamable-http", "--host", "127.0.0.1",
                 "--port", "8000"],
         "port": 8000,

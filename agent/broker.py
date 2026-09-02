@@ -11,6 +11,7 @@ import os
 import time
 import urllib.error
 import urllib.parse
+import ssl
 import urllib.request
 from typing import Any
 
@@ -54,10 +55,11 @@ class Alpaca:
                    "Content-Type": "application/json"}
         data = json.dumps(body).encode() if body is not None else None
         last = None
+        ctx = None      # switched to certifi's bundle if the OS chain check fails
         for attempt in range(tries):
             try:
                 req = urllib.request.Request(url, data=data, headers=headers, method=method)
-                with urllib.request.urlopen(req, timeout=60) as resp:
+                with urllib.request.urlopen(req, timeout=60, context=ctx) as resp:
                     raw = resp.read().decode()
                     return json.loads(raw) if raw else {}
             except urllib.error.HTTPError as exc:
@@ -67,6 +69,16 @@ class Alpaca:
                     raise BrokerError(f"{method} {url.split('?')[0]} -> {last}") from exc
             except Exception as exc:                       # noqa: BLE001
                 last = str(exc)
+                # 2026-09-02 15:45 ET: the entry pass died on CERTIFICATE_VERIFY_FAILED
+                # ("self-signed certificate in certificate chain") that was gone an
+                # hour later. Retry the remaining attempts against certifi's bundle
+                # instead of the OS store before giving up on a trading pass.
+                if "CERTIFICATE_VERIFY_FAILED" in last and ctx is None:
+                    try:
+                        import certifi
+                        ctx = ssl.create_default_context(cafile=certifi.where())
+                    except Exception:                      # noqa: BLE001
+                        ctx = None
             time.sleep(0.8 * (attempt + 1))
         raise BrokerError(f"{method} {url.split('?')[0]} failed after {tries}: {last}")
 

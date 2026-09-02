@@ -24,9 +24,17 @@ FILES = ["journal/decisions.jsonl", "journal/DECISIONS.md",
          "journal/open_trades.json"]
 
 
-def run(args, **kw):
-    return subprocess.run(args, cwd=ROOT, capture_output=True, text=True,
+DEV_ROOT = os.environ.get("EDGESTACK_DEV_ROOT", r"C:\Users\Lenovo\alpaca-mcp-lab")
+
+
+def run(args, cwd=None, **kw):
+    return subprocess.run(args, cwd=cwd or ROOT, capture_output=True, text=True,
                           timeout=120, **kw)
+
+
+def detached(root) -> bool:
+    r = run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=root)
+    return r.returncode != 0 or r.stdout.strip() == "HEAD"
 
 
 def main() -> int:
@@ -34,18 +42,35 @@ def main() -> int:
     if not existing:
         print("nothing to commit")
         return 0
-    run(["git", "add", "--"] + existing)
-    diff = run(["git", "diff", "--cached", "--quiet"])
+    # Since 2026-09-02 the running code is a DETACHED worktree behind the live
+    # junction (forge master:live promotion). The audit trail still belongs in
+    # the repo, so copy the journal artifacts into the working tree and commit
+    # there; GitHub receives it through the forge mirror, never a direct push.
+    work = ROOT
+    if detached(ROOT) and os.path.isdir(os.path.join(DEV_ROOT, ".git")):
+        import shutil
+        for f in existing:
+            dst = os.path.join(DEV_ROOT, f)
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copy2(os.path.join(ROOT, f), dst)
+        work = DEV_ROOT
+    run(["git", "add", "--"] + existing, cwd=work)
+    diff = run(["git", "diff", "--cached", "--quiet"], cwd=work)
     if diff.returncode == 0:
         print("journal unchanged")
         return 0
-    msg = "journal: session record\n\nCo-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    msg = "journal: session record\n\nCo-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
     c = run(["git", "-c", "user.name=jpennin5",
              "-c", "user.email=190687079+jpennin5@users.noreply.github.com",
-             "commit", "-m", msg])
+             "commit", "-m", msg], cwd=work)
     if c.returncode != 0:
         print("commit failed:", c.stderr[:200])
         return 1
+    if run(["git", "remote", "get-url", "forge"], cwd=work).returncode == 0:
+        p = run(["git", "push", "-q", "forge", "HEAD:master"], cwd=work)
+        print("pushed to forge (mirror -> GitHub)" if p.returncode == 0
+              else f"forge push failed: {p.stderr[:200]}")
+        return 0 if p.returncode == 0 else 1
     try:
         from publish_url import github_token
         tok = github_token()

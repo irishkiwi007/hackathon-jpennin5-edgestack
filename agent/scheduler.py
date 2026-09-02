@@ -59,15 +59,25 @@ def run_pass(kind: str) -> None:
         args.append("--manage")
     log(f"--- {kind} pass starting ---")
     try:
-        res = subprocess.run(args, capture_output=True, text=True, timeout=900)
-        for line in (res.stdout or "").splitlines():
-            log(f"  {line}")
-        if res.returncode != 0:
-            for line in (res.stderr or "").splitlines()[-15:]:
-                log(f"  !! {line}")
-            log(f"--- {kind} pass exited {res.returncode} ---")
-        else:
-            log(f"--- {kind} pass complete ---")
+        attempt = 0
+        while True:
+            attempt += 1
+            res = subprocess.run(args, capture_output=True, text=True, timeout=900)
+            for line in (res.stdout or "").splitlines():
+                log(f"  {line}")
+            if res.returncode != 0:
+                for line in (res.stderr or "").splitlines()[-15:]:
+                    log(f"  !! {line}")
+                log(f"--- {kind} pass exited {res.returncode} (attempt {attempt}) ---")
+                # A transient broker failure at 15:45 must not cost the day: retry
+                # while there is still time before the 15:50 MOC cutoff (2026-09-02).
+                if kind == "entry" and attempt < 3 and now_et().strftime("%H:%M:%S") < "15:49:15":
+                    log("retrying the entry pass in 40s, still ahead of the MOC cutoff")
+                    time.sleep(40)
+                    continue
+            else:
+                log(f"--- {kind} pass complete ---")
+            break
         if kind == "entry":
             # the audit trail commits itself: journal artifacts -> git -> GitHub
             try:
