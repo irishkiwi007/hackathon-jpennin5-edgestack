@@ -266,21 +266,38 @@ def collapse_sweeps(cards):
     """One card per dose sweep. A `propose` with `variants` registers N
     hypotheses (<id>.v1..vN) that share one motivation; each is a complete
     record in the journal, but showing the same paragraph N times reads as a
-    bug (2026-09-02). Adjacent prereg cards with the same sweep_of merge into
-    a single card listing every variant and its prediction."""
+    bug (2026-09-02). Prereg cards of the same sweep merge into one card even
+    when engine-run cards sit between them (each variant backtests as it is
+    registered); those run counts fold into the merged card."""
     out = []
     for c in cards:
-        prev = out[-1] if out else None
-        if (c.get("kind") == "prereg" and c.get("sweep_of") and prev
-                and prev.get("kind") == "prereg" and prev.get("sweep_of") == c["sweep_of"]):
-            prev.setdefault("variants", [prev.get("variant_line", "")])
-            prev["variants"].append(c.get("variant_line", ""))
-            n = len(prev["variants"])
-            prev["title"] = f"Pre-registered {c['sweep_of']} \u2014 dose sweep, {n} variants"
-            prev["meta"] = "\n".join(prev["variants"])
-            prev["seq"] = f"{prev.get('seq_first', prev.get('seq'))}\u2013{c.get('seq')}"
-            continue
-        if c.get("kind") == "prereg" and c.get("sweep_of"):
+        sid = c.get("sweep_of")
+        if c.get("kind") == "prereg" and not sid:
+            m = re.match(r"^(.+)\.v\d+$", str(c.get("title", "")).replace("Pre-registered ", ""))
+            sid = m.group(1) if m else None
+            if sid:
+                c["sweep_of"] = sid
+                if not c.get("variant_line"):
+                    c["variant_line"] = c.get("meta", "")
+        if c.get("kind") == "prereg" and sid:
+            # look back past trailing run cards for the open sweep card
+            k = len(out) - 1
+            runs = 0
+            while k >= 0 and out[k].get("kind") == "runs":
+                runs += int(re.sub(r"\D", "", str(out[k].get("meta", "0"))) or 0)
+                k -= 1
+            if k >= 0 and out[k].get("kind") == "prereg" and out[k].get("sweep_of") == sid:
+                head = out[k]
+                del out[k + 1:]                         # fold the run cards
+                head.setdefault("variants", [head.get("variant_line", "")])
+                head["variants"].append(c.get("variant_line", ""))
+                head["runs_folded"] = head.get("runs_folded", 0) + runs
+                n = len(head["variants"])
+                head["title"] = f"Pre-registered {sid} \u2014 dose sweep, {n} variants"
+                head["meta"] = "\n".join(head["variants"]) + (
+                    f"\n\u2699 {head['runs_folded']} engine runs so far" if head["runs_folded"] else "")
+                head["seq"] = f"{head.get('seq_first', head.get('seq'))}\u2013{c.get('seq')}"
+                continue
             c["seq_first"] = c.get("seq")
         out.append(c)
     return out
