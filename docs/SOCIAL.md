@@ -88,19 +88,60 @@ Attach: `docs/day3_retire.png` (rebuild with `python video/build_day3_card.py`).
 > @Alpaca × @lablab.ai AI Trading Agents Hackathon.
 > https://github.com/jpennin5/edgestack
 
-## Day 4 — Wed Sep 2 (what survived + the third engine)
+## Day 4 — Wed Sep 2 (the live cutover as a stress test: what broke, what got hardened)
+The deploy-pipeline story from the last 24 hours, told honestly: the after-hours
+cutover, the drills, a market-hours promotion, the two failures no drill covered,
+and the hardening that went out through the same pipeline before 16:45 ET.
+Shipped as commits 9e0b607 (pipeline), 30a5b84, 60516c1, 6b5ad68 (today's promotions).
+Attach: `docs/day4_stress.png` (rebuild with `python video/build_day4_card.py`).
 
-> EdgeStack trades only what survived the attempt to kill it: long SPY overnight-only
-> (Sharpe 0.89 vs 0.05 intraday), a capitulation basket across 7 ETFs (+1.42% per event,
-> t=4.27 over 33 years), and a credit canary mined from my own older strategies — adopted
-> only after it passed two disjoint validation windows (0.65 → 1.02 Sharpe).
+> Last night I moved EdgeStack's live process off my working tree and behind a
+> promotion pipeline, then used the running competition system as the stress test.
 >
-> Then the part I care about most: an independent QuantConnect replay, scored against a
-> pre-registered expectations table, agreed with my research engine year by year
-> (correlation +0.87) and beat its period-matched twin under ~4x my assumed costs.
+> The shape: work lands on `master` in a private forge; `git push forge master:live`
+> promotes; a poller validates the new checkout before anything running is touched,
+> swaps it in, health-checks it, and puts the previous one back if it doesn't come up.
+> GitHub became a push-mirror. Deploys hold during the two trading windows so a swap
+> can never land mid-pass.
 >
-> Three engines, one record. @Alpaca × @lablab.ai hackathon.
+> Drills first, on real code. An unparseable promotion was refused before the stack
+> even stopped. A compiles-but-crashes promotion swapped in, failed the health gate,
+> and was rolled back automatically in 8 seconds. The drills found four bugs in the
+> deployer itself: a PowerShell function named `Git` that shadowed git.exe into
+> infinite recursion, git's stdout polluting exit codes so successes read as
+> failures, a backspace literal corrupting a path, and a lock the resident loop held
+> forever — which would have starved an emergency rollback. That is what drills are for.
+>
+> Today, with the market open, I promoted a real change through it (11:50 ET). The
+> swap took about 12 seconds. Then two things broke that no drill had covered.
+>
+> 1. The Alpaca MCP server had silently died at the cutover. Restarting its
+> supervisor re-ran `uvx`, which resolved a fresh environment with fastmcp 4.0.1 —
+> an import the 2.3.0 server can't satisfy. The agent fell back to REST exactly as
+> designed, and the only signal was a red FALLBACK card. Lesson: "restart the
+> supervisor" is not idempotent when a package resolver sits underneath it.
+>
+> 2. The 15:45 entry pass failed on a transient TLS chain error — "self-signed
+> certificate in certificate chain", gone an hour later — and had no retry. Capital
+> wasn't idle; $70k had been parked in SGOV the day before at 3.90%. But no entry
+> decision was made today. That was the real cost.
+>
+> Hardening went out through the same pipeline by 16:45 ET, each swap validated and
+> health-gated: the MCP dependency pinned; a failed entry pass retries twice while
+> still ahead of the 15:50 MOC cutoff; the REST client falls back to certifi's bundle
+> when the OS chain check fails; the decision-journal auto-commit — which had been
+> failing silently from the detached checkout — pushes through the forge again; and
+> the dashboard probes the MCP server live and shows the parked bills instead of
+> "flat".
+>
+> The pipeline did what it was for: every fix was a promotion with a rollback behind
+> it, not an edit on a live box. The failures it didn't prevent are the ones worth
+> writing down.
+>
+> @Alpaca × @lablab.ai AI Trading Agents Hackathon.
 > https://github.com/jpennin5/edgestack
+
+(Earlier Day 4 draft — "what survived + the third engine" — folds into Day 5.)
 
 ## Day 5 — Thu Sep 3 (the machine — closer before judging)
 Attach: the cover with gate callouts, or a journal screenshot
