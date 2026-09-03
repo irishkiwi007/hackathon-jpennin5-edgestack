@@ -43,8 +43,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 ROOT = os.path.abspath(os.path.join(HERE, ".."))
 ENGINE = os.path.join(ROOT, "engine")
-STRATS = os.path.join(ENGINE, "strategies")
-DATA = os.path.join(ENGINE, "data")
+STRATS = os.environ.get("EDGESTACK_STRATEGIES") or os.path.join(ENGINE, "strategies")
+DATA = os.environ.get("EDGESTACK_DATA") or os.path.join(ENGINE, "data")
+PRIVATE = os.environ.get("EDGESTACK_PRIVATE") == "1"      # the operator's own instance
 RUNNER = os.path.join(ENGINE, "run_backtest.py")
 STATE = os.path.join(ROOT, "journal", "live_manager")
 ACCOUNTS = os.path.join(STATE, "accounts.json")
@@ -151,11 +152,18 @@ def load_accounts() -> list[dict]:
     """The registry never holds a secret: profiles name the env vars that do."""
     accts = _read(ACCOUNTS, None)
     if accts is None:
-        accts = [{"id": COMPETITION_ACCOUNT, "label": "Competition paper (PA3ZCDDOPR2N)",
-                  "key_env": "ALPACA_API_KEY", "secret_env": "ALPACA_SECRET_KEY",
-                  "base_url": "https://paper-api.alpaca.markets",
-                  "note": "the judged account: the EdgeStack agent trades here; a deployment on "
-                          "it changes the P&L judges pull"}]
+        if PRIVATE:
+            accts = [{"id": COMPETITION_ACCOUNT,
+                      "label": os.environ.get("EDGESTACK_ACCOUNT_LABEL") or "Paper account (.env)",
+                      "key_env": "ALPACA_API_KEY", "secret_env": "ALPACA_SECRET_KEY",
+                      "base_url": "https://paper-api.alpaca.markets",
+                      "note": "the .env account of this private instance"}]
+        else:
+            accts = [{"id": COMPETITION_ACCOUNT, "label": "Competition paper (PA3ZCDDOPR2N)",
+                      "key_env": "ALPACA_API_KEY", "secret_env": "ALPACA_SECRET_KEY",
+                      "base_url": "https://paper-api.alpaca.markets",
+                      "note": "the judged account: the EdgeStack agent trades here; a deployment on "
+                              "it changes the P&L judges pull"}]
         _write(ACCOUNTS, accts)
     return accts
 
@@ -169,7 +177,7 @@ def account_public(a: dict) -> dict:
     sec = os.environ.get(a.get("secret_env", ""), "")
     return {"id": a["id"], "label": a.get("label", a["id"]), "base_url": a.get("base_url"),
             "is_paper": "paper-api" in str(a.get("base_url", "")),
-            "is_competition": a["id"] == COMPETITION_ACCOUNT,
+            "is_competition": a["id"] == COMPETITION_ACCOUNT and not PRIVATE,
             "credentials_ok": bool(key and sec), "key_hint": key[:4] if key else a.get("key_env"),
             "note": a.get("note", "")}
 
@@ -299,7 +307,7 @@ def deploy(req: dict, who: str = "operator") -> dict:
             raise ValueError("live deployment needs an account profile")
         if not (0 < alloc <= 100):
             raise ValueError("alloc_pct must be in (0, 100]")
-        if acct["id"] == COMPETITION_ACCOUNT and not req.get("confirm_competition"):
+        if acct["id"] == COMPETITION_ACCOUNT and not PRIVATE and not req.get("confirm_competition"):
             raise ValueError("deploying on the competition account changes the judged P&L: "
                              "tick the confirmation to proceed")
         others = sum(float(d.get("alloc_pct") or 0) for d in load_deployments()

@@ -27,8 +27,11 @@ import uuid
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, ".."))
 ENGINE = os.path.join(ROOT, "engine")
-STRATS = os.path.join(ENGINE, "strategies")
-DATA = os.path.join(ENGINE, "data")
+# A PRIVATE instance (the operator's own server) points these at the engine's
+# real tree - every strategy, private ones included - instead of the
+# allowlisted copy this public repo carries (2026-09-02).
+STRATS = os.environ.get("EDGESTACK_STRATEGIES") or os.path.join(ENGINE, "strategies")
+DATA = os.environ.get("EDGESTACK_DATA") or os.path.join(ENGINE, "data")
 RUNNER = os.path.join(ENGINE, "run_backtest.py")
 INSPECTOR = os.path.join(ENGINE, "inspect_strategy.py")
 OUT = os.path.join(ROOT, "journal", "backtests")

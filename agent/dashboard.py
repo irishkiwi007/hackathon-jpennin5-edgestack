@@ -36,8 +36,11 @@ ROOT = os.path.join(HERE, "..")
 JOURNAL = os.path.join(ROOT, "journal")
 PORT = int(os.environ.get("EDGESTACK_DASH_PORT", "8787"))
 TOKEN_PATH = os.path.join(JOURNAL, "operator_token")
-LAB_URL = "https://jpennin5.github.io/edgestack/lab/"
-DOSSIER_URL = "http://forgejo.tail054462.ts.net:3000/jacob/lab-journal/src/branch/master/reports/"
+PRIVATE = os.environ.get("EDGESTACK_PRIVATE") == "1"      # the operator's own instance
+# Public instance: the read-only replica. Private instance: the lab itself.
+LAB_URL = os.environ.get("EDGESTACK_LAB_URL") or "https://jpennin5.github.io/edgestack/lab/"
+DOSSIER_URL = os.environ.get("EDGESTACK_DOSSIER_URL") or \
+    "http://forgejo.tail054462.ts.net:3000/jacob/lab-journal/src/branch/master/reports/"
 
 _cache: dict = {"t": 0.0, "data": None}
 _lock = threading.Lock()
@@ -367,8 +370,9 @@ def render_live(d: dict) -> str:
         pos_rows = "<tr><td colspan=4 style='color:var(--dim)'>flat — waiting for signals that clear the gates</td></tr>"
 
     return f"""
-<p class="tag">Evidence opens the door to opportunity &middot; 33 years of evidence, three
-backtest engines, one graveyard &middot; Alpaca paper account <span class="mono">{esc(a['number'])}</span></p>
+<p class="tag">{'Private instance &middot; every strategy, tailnet only' if PRIVATE else
+    'Evidence opens the door to opportunity &middot; 33 years of evidence, three backtest engines, one graveyard'}
+&middot; Alpaca paper account <span class="mono">{esc(a['number'])}</span></p>
 
 <div class="grid">
 <div class="card"><div class="k">Equity</div><div class="v">${eq:,.0f}</div>
@@ -386,7 +390,7 @@ backtest engines, one graveyard &middot; Alpaca paper account <span class="mono"
 <div class="sec"><h2>Open positions</h2>
 <table><tr><th>symbol</th><th>component</th><th>size</th><th>entered</th></tr>{pos_rows}</table></div>
 
-<div class="sec"><h2>Strategy — every number is a measurement</h2>
+{'' if PRIVATE else '''<div class="sec"><h2>Strategy — every number is a measurement</h2>
 <div class="evidence">
 <span class="pill">SPY overnight core &middot; Sharpe 0.89 vs 0.05 intraday &middot; 8/9 eras</span>
 <span class="pill">gate: 12-month trend AND credit canary (HYG &gt; SMA100) &middot; validated on
@@ -395,9 +399,9 @@ disjoint windows 0.80&rarr;0.98 / 0.65&rarr;1.02</span>
 <span class="pill">volume ceiling 2.5x — above it "real news arrived", edge dies</span>
 <span class="pill">options: defined-risk put spreads behind 14 deterministic gates</span>
 </div></div>
-
+'''}
 <div class="sec"><h2>Decision journal (latest sessions)</h2>
-<table><tr><th>session</th><th>signals</th><th>what happened &amp; why</th></tr>{rows}</table></div>
+<table><tr><th>session</th><th>signals</th><th>what happened &amp; why</th></tr>{rows or '<tr><td colspan=3 class=small>no agent sessions on this instance</td></tr>'}</table></div>
 
 <div class="sec"><h2>Live Manager — deployments</h2>
 <div class="small" style="margin-bottom:8px">Deploy any strategy module against a slice of an account with a drawdown kill switch,
