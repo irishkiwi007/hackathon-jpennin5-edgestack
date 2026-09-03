@@ -554,15 +554,22 @@ class Handler(BaseHTTPRequestHandler):
         access(f"{code} {self.command} {self.path} "
                f"origin={self.headers.get('Origin') or '-'} "
                f"ctype={self.headers.get('Content-Type') or '-'} "
-               f"local={self._local_operator()} key={'y' if self.headers.get('X-Operator-Token') else 'n'}"
+               f"local={self._local_operator()} key={'y' if self.headers.get('X-Operator-Token') else 'n'} "
+               f"ts={self.headers.get('Tailscale-User-Login') or '-'}"
                + ("" if code < 400 else f" body={body[:160].decode(errors='replace')}"))
 
     def _tunnelled(self) -> bool:
         """cloudflared proxies the public tunnel FROM loopback, so a visitor from
-        anywhere arrives looking local; its forwarding headers give it away."""
-        return any(self.headers.get(h) for h in
-                   ("CF-Connecting-IP", "CF-Ray", "X-Forwarded-For",
-                    "X-Forwarded-Proto", "X-Real-IP"))
+        anywhere arrives looking local; the CF-* headers it stamps on every
+        request (and a client cannot strip) give it away. `tailscale serve`
+        ALSO proxies from loopback - for https://lenovo.tail054462.ts.net - but
+        stamps X-Forwarded-For with the peer's tailnet address and the
+        operator's Tailscale login instead; that is the operator, not a
+        visitor (2026-09-02)."""
+        if any(self.headers.get(h) for h in ("CF-Connecting-IP", "CF-Ray")):
+            return True
+        fwd = (self.headers.get("X-Forwarded-For") or "").split(",")[0].strip()
+        return bool(fwd) and not is_tailnet(fwd)
 
     def _local_operator(self) -> bool:
         """True when the request came from a browser ON this machine or from a
