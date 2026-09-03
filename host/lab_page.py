@@ -80,7 +80,8 @@ PUBLIC_STRATEGY_PREFIXES = ("edgestack", "bench_")
 # Symbols no public strategy trades: seeing one means the card came from a
 # private strategy's universe, whatever its family says.
 PRIVATE_SYMBOLS = ("SPXL", "TQQQ", "WPM", "FNV", "RGLD", "VLUE", "QUAL", "MTUM",
-                   "SPHB", "SPLV", "USMV", "RSP", "TLT", "IEF", "BIL")
+                   "SPHB", "SPLV", "USMV", "RSP", "BIL")
+# (TLT, IEF and GLD left this list on 2026-09-03: agent-authored families trade them.)
 
 
 def _base_stem(filename):
