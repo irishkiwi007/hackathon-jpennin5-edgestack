@@ -18,6 +18,10 @@ journal/live_manager/
 engine/strategies/*
 !engine/strategies/edgestack*.py
 !engine/strategies/bench_spy_hold.py
+# agent-authored families (publishable by the operator's rule); new ones carry the edgestack_ prefix
+!engine/strategies/regimebasket*.py
+!engine/strategies/regimeduo*.py
+!engine/strategies/voltgt*.py
 engine/data/*
 !engine/data/SPY.csv
 !engine/data/SPYON.csv

@@ -95,6 +95,14 @@ def private_index(evs):
     list. A family is private if ANY pre-registration in it names a strategy
     file outside PUBLIC_STRATEGY_PREFIXES."""
     fam_files, pub_params, priv_params = {}, set(), set()
+    # Agent-authored families are publishable by the operator's rule
+    # ("anything created in the container"): a family_created root is public
+    # whatever its name (2026-09-03; new ones are allocated an edgestack_ prefix).
+    authored = {str(e.get("root")) for e in evs if e.get("type") == "family_created" and e.get("root")}
+
+    def is_public(fn):
+        stem = _base_stem(fn)
+        return stem.startswith(PUBLIC_STRATEGY_PREFIXES) or stem in authored
     for e in evs:
         if e.get("type") != "prereg":
             continue
@@ -103,17 +111,17 @@ def private_index(evs):
         if fam:
             fam_files.setdefault(fam, set()).add(fn)
         keys = set((e.get("variant_params") or {}))
-        (pub_params if _base_stem(fn).startswith(PUBLIC_STRATEGY_PREFIXES) else priv_params).update(keys)
+        (pub_params if is_public(fn) else priv_params).update(keys)
     families, files = set(), set()
     for fam, fns in fam_files.items():
-        if any(not _base_stem(f).startswith(PUBLIC_STRATEGY_PREFIXES) for f in fns):
+        if any(not is_public(f) for f in fns):
             families.add(fam)
-            files.update(f for f in fns if not _base_stem(f).startswith(PUBLIC_STRATEGY_PREFIXES))
+            files.update(f for f in fns if not is_public(f))
     tokens = {t for t in
               ({_base_stem(f) for f in files} | families
                | (priv_params - pub_params)          # a name both share is no marker
                | set(PRIVATE_SYMBOLS)) if t}
-    return {"families": families, "files": files,
+    return {"families": families, "files": files, "authored": authored,
             "rx": re.compile(r"(?<![A-Za-z0-9_])(" + "|".join(sorted(map(re.escape, tokens),
                                                                      key=len, reverse=True))
                              + r")(?![A-Za-z0-9_])", re.I) if tokens else None}
@@ -130,7 +138,8 @@ def is_private(e, c, idx):
         v = e.get(k)
         if not isinstance(v, str) or not v.endswith(".py"):
             continue                       # only a strategy FILE names a strategy
-        if v in idx["files"] or not _base_stem(v).startswith(PUBLIC_STRATEGY_PREFIXES):
+        if v in idx["files"] or (not _base_stem(v).startswith(PUBLIC_STRATEGY_PREFIXES)
+                                 and _base_stem(v) not in idx.get("authored", set())):
             return True
     rx = idx["rx"]
     if rx and c:

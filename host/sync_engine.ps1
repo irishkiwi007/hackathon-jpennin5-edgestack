@@ -12,7 +12,7 @@ $remote = @'
 cd /opt/trustyrusty
 # Only the submitted strategy's lineage and the benchmark are public; the
 # operator's own strategies stay in the container (engine/BORROWED.md).
-PUB=$(ls python_strategies/strategies/edgestack*.py python_strategies/strategies/bench_spy_hold.py 2>/dev/null)
+PUB=$(ls python_strategies/strategies/edgestack*.py python_strategies/strategies/bench_spy_hold.py python_strategies/strategies/regimebasket*.py python_strategies/strategies/regimeduo*.py python_strategies/strategies/voltgt*.py 2>/dev/null)
 SYMS=$(grep -ohE "[\"'][A-Z]{2,6}[\"']" $PUB 2>/dev/null | tr -d "\"'" | sort -u)
 FILES=""
 for s in $SYMS; do [ -f data/historical/$s.csv ] && FILES="$FILES data/historical/$s.csv"; done
