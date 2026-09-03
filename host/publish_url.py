@@ -69,12 +69,14 @@ font:15px/1.5 'Segoe UI',system-ui,sans-serif;height:100vh;display:flex;flex-dir
 #tabs{{display:flex;gap:6px;margin-left:auto}}
 #tabs button{{background:#121826;border:1px solid #1f2937;color:#c9d1d9;padding:8px 16px;border-radius:9px;font-size:14px;cursor:pointer}}
 #tabs button.on{{background:#1d4ed8;border-color:#1d4ed8;color:#fff}}
-#links{{font-size:13px;color:#8b98a9}}#links a{{color:#60a5fa;margin-left:12px}}
+#links{{font-size:13px;color:#8b98a9;display:flex;align-items:center}}#links a{{color:#60a5fa;margin-left:12px}}
+#okey{{margin-left:14px;background:#0d1219;border:1px solid #1f2937;color:#e5e7eb;border-radius:6px;padding:5px 8px;width:130px;font:12px Consolas,monospace}}
 .pane{{flex:1;display:none}}.pane.on{{display:block}}
 iframe{{width:100%;height:100%;border:0;background:#0b0f14}}</style></head>
 <body><div id=hd><h1>Edge<span>Stack</span></h1><span class=tag>Evidence opens the door to opportunity.</span>
 <div id=tabs><button id=t-live class=on>Live</button><button id=t-lab>Research</button><button id=t-backtest>Backtest</button></div>
-<span id=links><a href="{url}" target=_blank>open dashboard</a><a href="https://github.com/{REPO}">repository</a></span></div>
+<span id=links><a href="{url}" target=_blank>open dashboard</a><a href="https://github.com/{REPO}">repository</a>
+<input id=okey type=password placeholder="operator key" title="Only the operator has one. Stored in this browser on this stable address, so it survives the tunnel changing hostname; handed to the dashboard in the URL fragment, which never leaves the browser." autocomplete=off></span></div>
 <div id=p-live class="pane on"><iframe src="{url}/?embed=1#live" title="EdgeStack live dashboard"></iframe></div>
 <div id=p-lab class=pane><iframe src="https://jpennin5.github.io/edgestack/lab/" title="EdgeStack research lab (read-only)"></iframe></div>
 <div id=p-backtest class=pane><iframe src="{url}/?embed=1#backtest" title="EdgeStack backtests"></iframe></div>
@@ -84,6 +86,11 @@ document.getElementById('p-'+k).classList.toggle('on',k===t)}};try{{history.repl
 document.getElementById('t-live').onclick=()=>show('live');document.getElementById('t-lab').onclick=()=>show('lab');
 document.getElementById('t-backtest').onclick=()=>show('backtest');
 if(location.hash==='#lab')show('lab');if(location.hash==='#backtest')show('backtest');
+const okey=document.getElementById('okey');try{{okey.value=localStorage.getItem('opkey')||''}}catch(e){{}}
+function frames(){{const k=okey.value.trim();const s=t=>"{url}/?embed=1#"+t+(k?'&key='+encodeURIComponent(k):'');
+document.querySelector('#p-live iframe').src=s('live');document.querySelector('#p-backtest iframe').src=s('backtest')}}
+okey.onchange=()=>{{try{{localStorage.setItem('opkey',okey.value.trim())}}catch(e){{}}frames()}};
+if(okey.value)frames();
 </script></body></html>"""
 
 

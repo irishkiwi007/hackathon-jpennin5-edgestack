@@ -103,7 +103,13 @@ def _watch_tunnel(proc, log_path, log, start_offset=0):
                         fh.write(url + "\n")
                     log("tunnel URL published: " + url)
                     try:
+                        import importlib
                         import publish_url as _pub
+                        # This supervisor now outlives deploys (the tunnel is
+                        # left running so its URL survives them), so the page
+                        # template must be re-read from the promoted tree each
+                        # time, not served from a module cached at first use.
+                        _pub = importlib.reload(_pub)
                         rc_pub = _pub.publish()
                         log(f"stable-page publish rc={rc_pub} "
                             "(https://jpennin5.github.io/edgestack/)")

@@ -197,6 +197,10 @@ function show(t){for(const k of ['live','research','backtest']){$('#t-'+k).class
 for(const k of ['live','research','backtest'])$('#t-'+k).onclick=()=>show(k);
 if(EMBED)$('#tabs').style.display='none';
 const key=()=>{try{return localStorage.getItem('opkey')||''}catch(e){return ''}};
+/* The stable landing page keeps the operator key on ITS origin (which never changes) and
+   hands it over in the fragment, because a quick tunnel takes a new hostname on every
+   restart and localStorage here dies with the old one. Fragments never reach the server. */
+try{const m=(location.hash||'').match(/[#&;]key=([A-Za-z0-9]+)/); if(m)localStorage.setItem('opkey',m[1])}catch(e){}
 try{if(!$('#opkey input').value)$('#opkey input').value=key();
  const v=$('#opkey input').value.trim(); if(v&&v!==key())localStorage.setItem('opkey',v)}catch(e){}
 $('#opkey input').onchange=e=>{try{localStorage.setItem('opkey',e.target.value.trim())}catch(x){} note('operator key stored in this browser')};
@@ -294,7 +298,7 @@ $('#dp-form').onsubmit=async e=>{e.preventDefault(); const f=e.target; const bod
  try{const r=await api('/api/live/deployments','POST',body); note('launched '+r.display_name+' ('+r.mode+')'); loadLive()}catch(x){note(x.message,true)}};
 
 /* ---------------- boot ---------------- */
-const h=(location.hash||'#live').slice(1); show(['live','research','backtest'].includes(h)?h:'live');
+const h=(location.hash||'#live').slice(1).split(/[&;]/)[0]; show(['live','research','backtest'].includes(h)?h:'live');
 setInterval(()=>{if(document.activeElement&&['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName))return; if($('#p-live').classList.contains('on'))location.reload()},90000);
 """
 
