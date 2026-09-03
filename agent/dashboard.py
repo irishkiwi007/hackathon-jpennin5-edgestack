@@ -508,13 +508,30 @@ def access(line: str) -> None:
 
 STABLE_PAGE_ORIGIN = "https://jpennin5.github.io"      # the landing page's permanent origin
 
+# Tailscale hands every node an address from these ranges and nothing else can
+# source them here: the packets only arrive through the WireGuard tunnel that
+# the operator's own account authenticated. That is the operator's tailnet.
+import ipaddress
+TAILNET = (ipaddress.ip_network("100.64.0.0/10"), ipaddress.ip_network("fd7a:115c:a1e0::/48"))
+
+
+def is_tailnet(host: str) -> bool:
+    try:
+        ip = ipaddress.ip_address(host.split("%")[0])
+    except ValueError:
+        return False
+    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped:
+        ip = ip.ipv4_mapped
+    return any(ip in net for net in TAILNET)
+
 
 def origin_allowed(origin: str) -> bool:
-    """Origins that may make cross-origin calls here: this machine, the tunnel
-    the page is served through, and the stable landing page that embeds it."""
-    host = origin.split("//")[-1].split(":")[0]
+    """Origins that may make cross-origin calls here: this machine, the tailnet,
+    the tunnel the page is served through, and the stable landing page."""
+    host = origin.split("//")[-1].split(":")[0].strip("[]")
     return (host in ("127.0.0.1", "localhost") or origin == STABLE_PAGE_ORIGIN
-            or origin.endswith(".trycloudflare.com"))
+            or origin.endswith(".trycloudflare.com") or host.endswith(".ts.net")
+            or is_tailnet(host))
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -540,27 +557,35 @@ class Handler(BaseHTTPRequestHandler):
                f"local={self._local_operator()} key={'y' if self.headers.get('X-Operator-Token') else 'n'}"
                + ("" if code < 400 else f" body={body[:160].decode(errors='replace')}"))
 
-    def _local_operator(self) -> bool:
-        """True when the request came from a browser ON this machine.
+    def _tunnelled(self) -> bool:
+        """cloudflared proxies the public tunnel FROM loopback, so a visitor from
+        anywhere arrives looking local; its forwarding headers give it away."""
+        return any(self.headers.get(h) for h in
+                   ("CF-Connecting-IP", "CF-Ray", "X-Forwarded-For",
+                    "X-Forwarded-Proto", "X-Real-IP"))
 
-        cloudflared proxies the tunnel FROM loopback, so a remote visitor also
-        arrives as 127.0.0.1; its forwarding headers are what tell the two
-        apart. Whoever is sitting at the console can already read the token
-        file, so making them paste it back buys nothing (2026-09-02)."""
+    def _local_operator(self) -> bool:
+        """True when the request came from a browser ON this machine or from a
+        device on the operator's tailnet. Whoever is at the console can already
+        read the token file, so making them paste it back buys nothing; a
+        tailnet peer has already been authenticated by WireGuard to the
+        operator's own Tailscale account, which is a stronger proof than a
+        pasted string (2026-09-02). LAN addresses are NOT trusted."""
         host = (self.client_address or ("",))[0]
-        if host not in ("127.0.0.1", "::1", "::ffff:127.0.0.1"):
-            return False
-        return not any(self.headers.get(h) for h in
-                       ("CF-Connecting-IP", "CF-Ray", "X-Forwarded-For",
-                        "X-Forwarded-Proto", "X-Real-IP"))
+        if host in ("127.0.0.1", "::1", "::ffff:127.0.0.1"):
+            return not self._tunnelled()
+        return is_tailnet(host) and not self._tunnelled()
 
     def _same_origin(self) -> bool:
         """A cross-site page must not be able to drive the local dashboard: the
         JSON content type forces a CORS preflight this server never answers,
         and an Origin from anywhere else is refused outright."""
         origin = self.headers.get("Origin")
-        if origin and origin.split("//")[-1].split(":")[0] not in ("127.0.0.1", "localhost"):
-            return False
+        if origin:
+            ohost = origin.split("//")[-1].split(":")[0].strip("[]")
+            if ohost not in ("127.0.0.1", "localhost") and not ohost.endswith(".ts.net") \
+                    and not is_tailnet(ohost):
+                return False
         return str(self.headers.get("Content-Type", "")).startswith("application/json")
 
     def _authed(self) -> bool:
