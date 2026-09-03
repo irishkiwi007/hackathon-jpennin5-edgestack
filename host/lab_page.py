@@ -334,6 +334,9 @@ def card(e):
                 "body": (f"{e.get('zone_hits')}/{e.get('n')} zone hits vs a {100*float(e.get('baseline_rate',0)):.0f}% baseline "
                          f"(p={e.get('p_value')}). A fresh mining-null run is scheduled to tell genuine "
                          f"improvement from a funnel that loosened."), "meta": ""}
+    if t == "driver_run_end" and e.get("reason"):
+        return {**base, "kind": "warn", "title": "Run ended — wind-down, not a failure",
+                "body": scrub(e.get("reason", "")), "meta": scrub(e.get("note", ""))}
     if t == "brain_changed":
         to = e.get("to") or {}
         return {**base, "kind": "op", "title": "Brain switched by the operator",
