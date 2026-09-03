@@ -73,8 +73,13 @@ MODES = {
         "port": None,
     },
     "tunnel": {
+        # --protocol http2: the QUIC transport dropped and re-registered ~1,000
+        # times in 12h on 2026-09-03 ("datagram manager", "accept stream"), and
+        # every drop is a failed click for whoever is on the page. HTTP/2 is
+        # the documented fallback and does not exhibit it.
         "cmd": [os.path.join(HERE, "bin", "cloudflared.exe"), "tunnel",
-                "--url", "http://127.0.0.1:8787", "--no-autoupdate"],
+                "--url", "http://127.0.0.1:8787", "--no-autoupdate",
+                "--protocol", "http2"],
         "port": None,
     },
 }
