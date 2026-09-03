@@ -201,8 +201,13 @@ try{if(!$('#opkey input').value)$('#opkey input').value=key();
  const v=$('#opkey input').value.trim(); if(v&&v!==key())localStorage.setItem('opkey',v)}catch(e){}
 $('#opkey input').onchange=e=>{try{localStorage.setItem('opkey',e.target.value.trim())}catch(x){} note('operator key stored in this browser')};
 function note(m,bad){const b=$('#msg');b.textContent=m;b.style.display='block';b.style.borderColor=bad?'#f87171':'#374151';clearTimeout(b._t);b._t=setTimeout(()=>b.style.display='none',6000)}
-async function api(path,method='GET',body){const r=await fetch(path,{method,headers:{'Content-Type':'application/json','X-Operator-Token':key()},body:body?JSON.stringify(body):undefined});
- const j=await r.json().catch(()=>({error:'bad json'})); if(!r.ok){throw new Error(j.error||('HTTP '+r.status))} return j}
+async function api(path,method='GET',body){
+ let r; try{r=await fetch(path,{method,headers:{'Content-Type':'application/json','X-Operator-Token':key()},body:body?JSON.stringify(body):undefined})}
+ catch(e){throw new Error(method+' '+path+' could not reach the dashboard: '+e.message)}
+ const txt=await r.text(); let j=null; try{j=JSON.parse(txt)}catch(e){}
+ if(j===null){throw new Error('HTTP '+r.status+' '+r.statusText+' from '+path+' — not JSON: '+txt.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,160))}
+ if(!r.ok)throw new Error(j.error||('HTTP '+r.status+' from '+path));
+ return j}
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const pct=x=>(x==null||isNaN(x))?'—':(100*x).toFixed(1)+'%', num=(x,d=2)=>(x==null||isNaN(x))?'—':Number(x).toFixed(d);
 let STRATS=[], RESULTS=[], SEL=null;
@@ -477,6 +482,26 @@ def render(d: dict, local: bool = False) -> str:
 
 
 # ------------------------------------------------------------------- HTTP
+ACCESS_LOG = os.path.join(JOURNAL, "dashboard.access.log")
+
+
+def access(line: str) -> None:
+    """One line per request. The browser is the only client whose failures we
+    cannot reproduce with curl, so when something goes wrong on the page this
+    is what says which request it was and what it got back (2026-09-02)."""
+    try:
+        os.makedirs(JOURNAL, exist_ok=True)
+        if os.path.exists(ACCESS_LOG) and os.path.getsize(ACCESS_LOG) > 2_000_000:
+            with open(ACCESS_LOG, encoding="utf-8", errors="replace") as fh:
+                tail = fh.readlines()[-2000:]
+            with open(ACCESS_LOG, "w", encoding="utf-8") as fh:
+                fh.writelines(tail)
+        with open(ACCESS_LOG, "a", encoding="utf-8") as fh:
+            fh.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} {line}\n")
+    except OSError:
+        pass
+
+
 class Handler(BaseHTTPRequestHandler):
     def _send(self, code: int, body, ctype="application/json"):
         if not isinstance(body, (bytes, str)):
@@ -489,6 +514,13 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(body)
+        if not self.path.startswith("/api"):
+            return
+        access(f"{code} {self.command} {self.path} "
+               f"origin={self.headers.get('Origin') or '-'} "
+               f"ctype={self.headers.get('Content-Type') or '-'} "
+               f"local={self._local_operator()} key={'y' if self.headers.get('X-Operator-Token') else 'n'}"
+               + ("" if code < 400 else f" body={body[:160].decode(errors='replace')}"))
 
     def _local_operator(self) -> bool:
         """True when the request came from a browser ON this machine.
@@ -603,10 +635,33 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as exc:                       # noqa: BLE001
             return self._send(500, {"error": str(exc)[:500]})
 
+    def do_OPTIONS(self):                              # noqa: N802
+        """A cross-origin write carries X-Operator-Token, which is not a simple
+        header, so the browser preflights it. Without this the base class
+        answers 501 with an HTML body and the page reports only "bad json"."""
+        origin = self.headers.get("Origin") or ""
+        host = origin.split("//")[-1].split(":")[0]
+        allowed = host in ("127.0.0.1", "localhost") or origin.endswith(".trycloudflare.com")
+        self.send_response(204 if allowed else 403)
+        if allowed:
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Operator-Token")
+            self.send_header("Access-Control-Max-Age", "600")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+        access(f"{204 if allowed else 403} OPTIONS {self.path} origin={origin or '-'}")
+
     def do_HEAD(self):                                 # noqa: N802 — probes use HEAD
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.end_headers()
+
+    def send_error(self, code, message=None, explain=None):
+        """The base class answers unknown methods and malformed requests with an
+        HTML body; log it, because to the page it is just a non-JSON failure."""
+        access(f"{code} {self.command} {self.path} base-class-error={message or ''}")
+        super().send_error(code, message, explain)
 
     def log_message(self, fmt, *args):                 # quiet
         pass
