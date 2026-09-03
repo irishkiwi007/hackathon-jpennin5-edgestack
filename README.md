@@ -94,7 +94,7 @@ logon. A Docker path for the MCP server ships in `Dockerfile`/`docker-compose.ym
 | **Research** | the read-only public replica of the research lab | none |
 | **Backtest** | the borrowed TrustyRustyEngine runner (`engine/`, see `engine/BORROWED.md`) on the submitted strategy's lineage and the buy-and-hold benchmark it must beat, with the adoption dossier behind each candidate. The operator's other strategies are private and stay in the container | operator key to run |
 
-Reads are public; anything that runs code or moves money needs the operator key (`journal/operator_token`, generated on first start, never committed). The tunnel puts the page on the open internet, so the write surface is keyed.
+Reads are public; anything that runs code or moves money is keyed, because the tunnel puts the page on the open internet. From a browser **on the host** the dashboard just works: whoever is at the console can already read the key file, so writes are allowed there without it, guarded against cross-site abuse by an Origin check and a JSON content type that forces a preflight the server never answers. Everyone else — the tunnel included, which cloudflared proxies from loopback and is told apart by its forwarding headers — sends the key from `journal/operator_token` (generated on first start, never committed) in `X-Operator-Token`. The local page shows the key so it can be copied for remote use.
 
 ## The research behind it
 

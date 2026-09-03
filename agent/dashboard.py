@@ -197,7 +197,8 @@ function show(t){for(const k of ['live','research','backtest']){$('#t-'+k).class
 for(const k of ['live','research','backtest'])$('#t-'+k).onclick=()=>show(k);
 if(EMBED)$('#tabs').style.display='none';
 const key=()=>{try{return localStorage.getItem('opkey')||''}catch(e){return ''}};
-try{$('#opkey input').value=key()}catch(e){}
+try{if(!$('#opkey input').value)$('#opkey input').value=key();
+ const v=$('#opkey input').value.trim(); if(v&&v!==key())localStorage.setItem('opkey',v)}catch(e){}
 $('#opkey input').onchange=e=>{try{localStorage.setItem('opkey',e.target.value.trim())}catch(x){} note('operator key stored in this browser')};
 function note(m,bad){const b=$('#msg');b.textContent=m;b.style.display='block';b.style.borderColor=bad?'#f87171':'#374151';clearTimeout(b._t);b._t=setTimeout(()=>b.style.display='none',6000)}
 async function api(path,method='GET',body){const r=await fetch(path,{method,headers:{'Content-Type':'application/json','X-Operator-Token':key()},body:body?JSON.stringify(body):undefined});
@@ -449,7 +450,7 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8"><meta name="viewport"
 <title>EdgeStack</title><style>@@CSS@@</style></head><body>
 <div id="hd"><h1>Edge<span>Stack</span> <span style="font-size:13px" class="@@ALIVE_CLS@@">&#9679; @@ALIVE_TXT@@</span></h1>
 <div id="tabs"><button id="t-live">Live</button><button id="t-research">Research</button><button id="t-backtest">Backtest</button></div>
-<span id="opkey">operator key <input type="password" placeholder="journal/operator_token" autocomplete="off"></span></div>
+<span id="opkey">operator key @@KEYFIELD@@</span></div>
 <div id="p-live" class="pane">@@LIVE@@</div>
 <div id="p-research" class="pane"><p class="tag">The research agent's lab, read-only: a public replica regenerated from the lab journal mirror.
 The lab itself, its engine and the Claude subscription behind it are not reachable from this page.</p>
@@ -460,9 +461,16 @@ The lab itself, its engine and the Claude subscription behind it are not reachab
 <script>const DOSSIER=@@DOSSIER@@;@@JS@@</script></body></html>"""
 
 
-def render(d: dict) -> str:
+def render(d: dict, local: bool = False) -> str:
     alive_cls, alive_txt = (("ok", "LIVE") if d["scheduler_alive"] else ("warn", "IDLE"))
+    # Shown only to this machine's own browser, which may already write without
+    # it: this is how the operator copies the key for use over the tunnel.
+    key_field = (f'<input type="password" value="{esc(operator_token())}" autocomplete="off" '
+                 f'title="this machine: writes are allowed without a key. Copy this to drive '
+                 f'the dashboard over the tunnel.">' if local else
+                 '<input type="password" placeholder="journal/operator_token" autocomplete="off">')
     return (PAGE.replace("@@CSS@@", CSS).replace("@@JS@@", JS)
+            .replace("@@KEYFIELD@@", key_field)
             .replace("@@ALIVE_CLS@@", alive_cls).replace("@@ALIVE_TXT@@", alive_txt)
             .replace("@@LIVE@@", render_live(d)).replace("@@BACKTEST@@", BACKTEST_PANE)
             .replace("@@LAB_URL@@", LAB_URL).replace("@@DOSSIER@@", json.dumps(DOSSIER_URL)))
@@ -482,9 +490,34 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _local_operator(self) -> bool:
+        """True when the request came from a browser ON this machine.
+
+        cloudflared proxies the tunnel FROM loopback, so a remote visitor also
+        arrives as 127.0.0.1; its forwarding headers are what tell the two
+        apart. Whoever is sitting at the console can already read the token
+        file, so making them paste it back buys nothing (2026-09-02)."""
+        host = (self.client_address or ("",))[0]
+        if host not in ("127.0.0.1", "::1", "::ffff:127.0.0.1"):
+            return False
+        return not any(self.headers.get(h) for h in
+                       ("CF-Connecting-IP", "CF-Ray", "X-Forwarded-For",
+                        "X-Forwarded-Proto", "X-Real-IP"))
+
+    def _same_origin(self) -> bool:
+        """A cross-site page must not be able to drive the local dashboard: the
+        JSON content type forces a CORS preflight this server never answers,
+        and an Origin from anywhere else is refused outright."""
+        origin = self.headers.get("Origin")
+        if origin and origin.split("//")[-1].split(":")[0] not in ("127.0.0.1", "localhost"):
+            return False
+        return str(self.headers.get("Content-Type", "")).startswith("application/json")
+
     def _authed(self) -> bool:
         given = self.headers.get("X-Operator-Token", "")
-        return bool(given) and hmac.compare_digest(given, operator_token())
+        if given and hmac.compare_digest(given, operator_token()):
+            return True
+        return self._local_operator() and self._same_origin()
 
     def _body(self) -> dict:
         n = int(self.headers.get("Content-Length") or 0)
@@ -516,7 +549,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, live_manager.status())
             if path.startswith("/api"):
                 return self._send(404, {"error": "no such route"})
-            return self._send(200, render(collect()), "text/html; charset=utf-8")
+            return self._send(200, render(collect(), local=self._local_operator()),
+                              "text/html; charset=utf-8")
         except Exception as exc:                       # noqa: BLE001
             return self._send(500, {"error": str(exc)[:500]})
 
