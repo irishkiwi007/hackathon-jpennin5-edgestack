@@ -192,6 +192,24 @@ def get(bt_id: str) -> dict | None:
         return None
 
 
+def delete(bt_id: str) -> bool:
+    """Remove a stored result and its index row. A run still in flight keeps
+    its index row until it finishes writing; deleting it then is fine too."""
+    if not re.fullmatch(r"[a-f0-9]{12}", bt_id or ""):
+        raise ValueError("bad backtest id")
+    with _lock:
+        rows = _load_index()
+        keep = [r for r in rows if r.get("id") != bt_id]
+        found = len(keep) != len(rows)
+        _save_index(keep)
+    try:
+        os.remove(os.path.join(OUT, f"{bt_id}.json"))
+        found = True
+    except OSError:
+        pass
+    return found
+
+
 def run_sync(name: str, options: dict) -> dict:
     """Run the engine runner as a subprocess (exactly how the Rust API server calls it)."""
     p = strategy_path(name)

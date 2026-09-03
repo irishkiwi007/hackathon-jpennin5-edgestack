@@ -190,6 +190,9 @@ svg.chart{width:100%;height:260px;background:#0d1219;border:1px solid var(--line
 .params label{font-size:11px;color:var(--dim);display:flex;flex-direction:column;gap:3px}
 .params input{background:#0d1219;border:1px solid var(--line);color:var(--txt);border-radius:6px;padding:5px 7px;font-size:12px}
 a{color:var(--acc)}
+td.x{width:28px;text-align:right;padding-right:6px}
+button.xb{background:none;border:0;color:var(--dim);font-size:16px;line-height:1;cursor:pointer;padding:0 4px;border-radius:4px}
+button.xb:hover{color:var(--red);background:#1f2937}
 """
 
 JS = r"""
@@ -246,9 +249,12 @@ async function pollResults(id){for(let i=0;i<120;i++){await new Promise(r=>setTi
 function renderResults(){$('#bt-results').innerHTML=RESULTS.map(r=>{const m=r.metrics||{};
  return `<tr class="${SEL===r.id?'sel':''}" onclick="selectResult('${r.id}')" style="cursor:pointer"><td class=mono>${esc(r.created).slice(0,16)}</td><td class=mono>${esc(r.strategy)}</td>
  <td>${r.status==='running'?'<span class=warn>running</span>':r.status==='error'?'<span class=bad>error</span>':'<span class=ok>done</span>'}</td>
- <td>${pct(m.cagr)}</td><td>${pct(m.total_return)}</td><td>${pct(m.max_drawdown)}</td><td>${num(m.sharpe_ratio)}</td><td>${m.total_trades??'—'}</td><td class=small>${esc(r.options&&r.options.start_date||'')}→${esc(r.options&&r.options.end_date||'')}</td></tr>`}).join('')||'<tr><td colspan=9 class=small>no backtests yet</td></tr>'}
+ <td>${pct(m.cagr)}</td><td>${pct(m.total_return)}</td><td>${pct(m.max_drawdown)}</td><td>${num(m.sharpe_ratio)}</td><td>${m.total_trades??'—'}</td><td class=small>${esc(r.options&&r.options.start_date||'')}→${esc(r.options&&r.options.end_date||'')}</td>
+ <td class=x><button class=xb title="delete this backtest" onclick="deleteResult(event,'${r.id}')">&times;</button></td></tr>`}).join('')||'<tr><td colspan=10 class=small>no backtests yet</td></tr>'}
 async function selectResult(id){SEL=id; renderResults(); try{const r=await api('/api/backtests/'+id); drawResult(r)}catch(e){note(e.message,true)}}
 window.selectResult=selectResult;
+window.deleteResult=async(ev,id)=>{ev.stopPropagation(); if(!confirm('Delete this backtest result?'))return;
+ try{await api('/api/backtests/'+id,'DELETE'); if(SEL===id){SEL=null;$('#bt-detail').innerHTML=''} const r=await api('/api/backtests'); RESULTS=r.results; renderResults()}catch(e){note(e.message,true)}};
 function drawResult(r){const box=$('#bt-detail'); const m=r.metrics||{};
  if(r.status==='error'){box.innerHTML=`<div class=card><b class=bad>error</b><pre class=mono style="white-space:pre-wrap">${esc(r.error)}</pre></div>`;return}
  const rows=[['CAGR',pct(m.cagr)],['total return',pct(m.total_return)],['max drawdown',pct(m.max_drawdown)],['Sharpe',num(m.sharpe_ratio)],['win rate',pct(m.win_rate)],['profit factor',num(m.profit_factor)],['trades',m.total_trades],['span',(m.start_date||'')+' → '+(m.end_date||'')],['fills',r.fills],['elapsed',(r.elapsed_s||0)+'s']];
@@ -452,7 +458,7 @@ Running needs the operator key; results are public.</p>
 <div class="full"><button class="b" type="submit">Run backtest</button> <span class="small">the lab's sealed holdout starts 2025-01-01; keep research windows before it</span></div>
 </form>
 <div class="sec"><h2>Results</h2>
-<table><tr><th>when</th><th>strategy</th><th>status</th><th>CAGR</th><th>return</th><th>max DD</th><th>Sharpe</th><th>trades</th><th>window</th></tr><tbody id="bt-results"></tbody></table></div>
+<table><tr><th>when</th><th>strategy</th><th>status</th><th>CAGR</th><th>return</th><th>max DD</th><th>Sharpe</th><th>trades</th><th>window</th><th></th></tr><tbody id="bt-results"></tbody></table></div>
 <div class="sec" id="bt-detail"></div>
 <div class="sec"><h2>Strategies</h2>
 <table><tr><th>file</th><th>kind</th><th>universe</th><th>params</th><th>adoption dossiers</th><th>inspect</th></tr><tbody id="bt-strats"></tbody></table>
@@ -685,6 +691,12 @@ class Handler(BaseHTTPRequestHandler):
         if not self._authed():
             return self._send(403, {"error": "operator key required (journal/operator_token)"})
         try:
+            if path.startswith("/api/backtests/"):
+                import backtests
+                bt_id = path.rsplit("/", 1)[-1]
+                found = backtests.delete(bt_id)
+                return self._send(200 if found else 404,
+                                  {"deleted": bt_id} if found else {"error": "no such backtest"})
             import live_manager
             if path == "/api/live/kill":
                 live_manager.set_kill_switch(False)
