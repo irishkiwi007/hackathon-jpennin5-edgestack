@@ -31,4 +31,22 @@ engine/data/*
 !engine/data/XLP.csv
 !engine/data/HYG.csv
 !engine/data/FDN.csv
+# histories the agent-authored families reference
+!engine/data/BIL.csv
+!engine/data/FNV.csv
+!engine/data/GLD.csv
+!engine/data/IEF.csv
+!engine/data/MTUM.csv
+!engine/data/QUAL.csv
+!engine/data/RGLD.csv
+!engine/data/RSP.csv
+!engine/data/SPHB.csv
+!engine/data/SPLV.csv
+!engine/data/SPXL.csv
+!engine/data/TLT.csv
+!engine/data/TQQQ.csv
+!engine/data/USMV.csv
+!engine/data/VIX.csv
+!engine/data/VLUE.csv
+!engine/data/WPM.csv
 journal/reproductions/
