@@ -255,8 +255,10 @@ async function pollResults(id){for(let i=0;i<120;i++){await new Promise(r=>setTi
 function renderResults(){$('#bt-results').innerHTML=RESULTS.map(r=>{const m=r.metrics||{};
  return `<tr class="${SEL===r.id?'sel':''}" onclick="selectResult('${r.id}')" style="cursor:pointer"><td class=mono>${esc(r.created).slice(0,16)}</td><td class=mono>${esc(r.strategy)}</td>
  <td>${r.status==='running'?'<span class=warn>running</span>':r.status==='error'?'<span class=bad>error</span>':'<span class=ok>done</span>'}</td>
- <td>${pct(m.cagr)}</td><td>${pct(m.total_return)}</td><td>${pct(m.max_drawdown)}</td><td>${num(m.sharpe_ratio)}</td><td>${m.total_trades??'—'}</td><td class=small>${esc(r.options&&r.options.start_date||'')}→${esc(r.options&&r.options.end_date||'')}</td>
- <td class=x><button class=xb title="delete this backtest" onclick="deleteResult(event,'${r.id}')">&times;</button></td></tr>`}).join('')||'<tr><td colspan=10 class=small>no backtests yet</td></tr>'}
+ <td>${pct(m.cagr)}</td><td>${pct(m.total_return)}</td><td>${pct(m.max_drawdown)}</td><td>${num(m.sharpe_ratio)}</td><td>${m.total_trades??'—'}</td>
+ <td>${(()=>{const v=r.vs_spy||{};const b=r.benchmark_metrics||{};if(v.d_cagr==null)return '<span class=small>—</span>';const up=v.d_cagr>=0;return `<span class="${up?'ok':'bad'}">${up?'+':''}${(100*v.d_cagr).toFixed(1)} pts</span><div class=small>SPY ${pct(b.cagr)}</div>`})()}</td>
+ <td class=small>${esc(r.options&&r.options.start_date||'')}→${esc(r.options&&r.options.end_date||'')}</td>
+ <td class=x><button class=xb title="delete this backtest" onclick="deleteResult(event,'${r.id}')">&times;</button></td></tr>`}).join('')||'<tr><td colspan=11 class=small>no backtests yet</td></tr>'}
 async function selectResult(id){SEL=id; renderResults(); try{const r=await api('/api/backtests/'+id); drawResult(r)}catch(e){note(e.message,true)}}
 window.selectResult=selectResult;
 window.deleteResult=async(ev,id)=>{ev.stopPropagation(); if(!confirm('Delete this backtest result?'))return;
@@ -264,17 +266,33 @@ window.deleteResult=async(ev,id)=>{ev.stopPropagation(); if(!confirm('Delete thi
 function drawResult(r){const box=$('#bt-detail'); const m=r.metrics||{};
  if(r.status==='error'){box.innerHTML=`<div class=card><b class=bad>error</b><pre class=mono style="white-space:pre-wrap">${esc(r.error)}</pre></div>`;return}
  const rows=[['CAGR',pct(m.cagr)],['total return',pct(m.total_return)],['max drawdown',pct(m.max_drawdown)],['Sharpe',num(m.sharpe_ratio)],['win rate',pct(m.win_rate)],['profit factor',num(m.profit_factor)],['trades',m.total_trades],['span',(m.start_date||'')+' → '+(m.end_date||'')],['fills',r.fills],['elapsed',(r.elapsed_s||0)+'s']];
+ const b=r.benchmark_metrics||{},v=r.vs_spy||{},cap=(r.options||{}).initial_capital||100000;
+ const money=x=>x==null?'—':'$'+Math.round(x).toLocaleString();
+ const diff=(x,goodUp=true)=>{if(x==null)return '—';const up=x>=0;const good=goodUp?up:!up;return `<span class="${good?'ok':'bad'}">${up?'+':''}${(100*x).toFixed(1)} pts</span>`};
+ const cmp=`<table style="margin:10px 0"><tr><th></th><th>strategy</th><th>SPY buy-and-hold</th><th>difference</th></tr>
+  <tr><td>final equity from ${money(cap)}</td><td><b>${money(v.final_equity)}</b></td><td>${money(v.final_spy)}</td><td>${v.final_equity!=null&&v.final_spy!=null?`<span class="${v.final_equity>=v.final_spy?'ok':'bad'}">${money(v.final_equity-v.final_spy)}</span>`:'—'}</td></tr>
+  <tr><td>total return</td><td>${pct(m.total_return)}</td><td>${pct(b.total_return)}</td><td>${diff(v.d_total_return)}</td></tr>
+  <tr><td>CAGR</td><td>${pct(m.cagr)}</td><td>${pct(b.cagr)}</td><td>${diff(v.d_cagr)}</td></tr>
+  <tr><td>max drawdown</td><td>${pct(m.max_drawdown)}</td><td>${pct(b.max_drawdown)}</td><td>${diff(v.d_max_drawdown,false)}</td></tr>
+  <tr><td>Sharpe</td><td>${num(m.sharpe_ratio)}</td><td>${num(b.sharpe_ratio)}</td><td>${v.d_sharpe==null?'—':`<span class="${v.d_sharpe>=0?'ok':'bad'}">${v.d_sharpe>=0?'+':''}${v.d_sharpe.toFixed(2)}</span>`}</td></tr></table>
+  <div class=small>SPY buy-and-hold = the same ${money(cap)} put into SPY on the strategy's first live bar and held to the end of the window, scored by the same metric code${b.approximate?' (older result: scored from the stored curve)':''}.</div>`;
  box.innerHTML=`<div class=card><div class=k>${esc(r.strategy)} · ${esc(r.id)}</div>
   <div class=grid style="margin:10px 0">${rows.map(([k,v])=>`<div><div class=k>${k}</div><div class=v style="font-size:17px">${esc(v)}</div></div>`).join('')}</div>
   ${chart(r.equity_curve||[],r.benchmark_curve||[])}
-  <div class=small style="margin-top:8px">blue: strategy · grey: SPY buy-and-hold anchored at the first live bar · params used: <span class=mono>${esc(JSON.stringify(r.params||{}))}</span></div>
+  ${cmp}
+  <div class=small style="margin-top:8px">params used: <span class=mono>${esc(JSON.stringify(r.params||{}))}</span></div>
   <div class=small>final target weights (last bar): <span class=mono>${esc(JSON.stringify(r.final_weights||{}))}</span></div>
   <div style="margin-top:10px"><button class=b onclick="prefillDeploy('${esc(r.strategy)}',${esc(JSON.stringify(JSON.stringify(r.params||{})))})">Deploy this strategy…</button></div></div>`}
 function chart(a,b){if(a.length<2)return '<div class=small>no equity curve</div>'; const W=1000,H=260,P=28; const all=a.concat(b).map(p=>p.equity); const lo=Math.min(...all),hi=Math.max(...all);
  const x=(i,n)=>P+(W-2*P)*i/(n-1), y=v=>H-P-(H-2*P)*(v-lo)/((hi-lo)||1);
  const path=(s)=>s.map((p,i)=>(i?'L':'M')+x(i,s.length).toFixed(1)+' '+y(p.equity).toFixed(1)).join(' ');
- return `<svg class=chart viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${path(b)}" fill=none stroke="#4b5563" stroke-width=1.5/><path d="${path(a)}" fill=none stroke="#60a5fa" stroke-width=2/>
+ const endA=a[a.length-1].equity, endB=b.length?b[b.length-1].equity:null;
+ return `<svg class=chart viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+ <path d="${path(b)}" fill=none stroke="#fbbf24" stroke-width=2 stroke-dasharray="7 5"/><path d="${path(a)}" fill=none stroke="#60a5fa" stroke-width=2.2/>
  <text x=${P} y=${P-8} fill="#8b98a9" font-size=12>${esc(a[0].date)}</text><text x=${W-P} y=${P-8} fill="#8b98a9" font-size=12 text-anchor=end>${esc(a[a.length-1].date)}</text>
+ <rect x=${P} y=${H-P-40} width=200 height=34 rx=6 fill="#0b0f14" fill-opacity=0.85/>
+ <line x1=${P+10} y1=${H-P-28} x2=${P+40} y2=${H-P-28} stroke="#60a5fa" stroke-width=2.2/><text x=${P+48} y=${H-P-24} fill="#e5e7eb" font-size=12>strategy ($${Math.round(endA).toLocaleString()})</text>
+ <line x1=${P+10} y1=${H-P-12} x2=${P+40} y2=${H-P-12} stroke="#fbbf24" stroke-width=2 stroke-dasharray="7 5"/><text x=${P+48} y=${H-P-8} fill="#e5e7eb" font-size=12>SPY buy-and-hold${endB!=null?' ($'+Math.round(endB).toLocaleString()+')':''}</text>
  <text x=${W-P} y=${H-6} fill="#8b98a9" font-size=12 text-anchor=end>${lo.toLocaleString()} – ${hi.toLocaleString()}</text></svg>`}
 window.prefillDeploy=(stem,paramsJson)=>{show('live'); $('#dp-stem').value=stem; paramInputs('#dp-params',stem); try{const p=JSON.parse(paramsJson); $$('input',$('#dp-params')).forEach(i=>{if(p[i.name]!=null)i.value=p[i.name]})}catch(e){} $('#dp-form').scrollIntoView({behavior:'smooth'})};
 
@@ -536,7 +554,7 @@ Running needs the operator key; results are public.</p>
 <div class="full"><button class="b" type="submit">Run backtest</button> <span class="small">the lab's sealed holdout starts 2025-01-01; keep research windows before it</span></div>
 </form>
 <div class="sec"><h2>Results</h2>
-<table><tr><th>when</th><th>strategy</th><th>status</th><th>CAGR</th><th>return</th><th>max DD</th><th>Sharpe</th><th>trades</th><th>window</th><th></th></tr><tbody id="bt-results"></tbody></table></div>
+<table><tr><th>when</th><th>strategy</th><th>status</th><th>CAGR</th><th>return</th><th>max DD</th><th>Sharpe</th><th>trades</th><th>CAGR vs SPY</th><th>window</th><th></th></tr><tbody id="bt-results"></tbody></table></div>
 <div class="sec" id="bt-detail"></div>
 <div class="sec" id="bt-dossier"></div>
 <div class="sec"><h2>Strategies</h2>

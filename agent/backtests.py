@@ -182,14 +182,46 @@ def results() -> list[dict]:
     return sorted(_load_index(), key=lambda r: r.get("created", ""), reverse=True)
 
 
+def _runner_metrics(curve: list[dict], capital: float) -> dict:
+    """The engine runner's own metric function, applied to any equity curve — so
+    SPY buy-and-hold is scored by exactly the code that scores the strategy."""
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("_bt_runner_", RUNNER)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)                      # type: ignore[union-attr]
+        return mod._compute_metrics(curve, [], float(capital)) or {}
+    except Exception:                                      # noqa: BLE001
+        return {}
+
+
+def versus_spy(metrics: dict, bench: dict, curve: list[dict], bcurve: list[dict]) -> dict:
+    """Apples to apples: the same capital, the same window, in SPY instead."""
+    def d(k):
+        a, b = metrics.get(k), bench.get(k)
+        return round(a - b, 6) if isinstance(a, (int, float)) and isinstance(b, (int, float)) else None
+    return {"final_equity": (curve[-1]["equity"] if curve else None),
+            "final_spy": (bcurve[-1]["equity"] if bcurve else None),
+            "d_total_return": d("total_return"), "d_cagr": d("cagr"),
+            "d_max_drawdown": d("max_drawdown"), "d_sharpe": d("sharpe_ratio")}
+
+
 def get(bt_id: str) -> dict | None:
     if not re.fullmatch(r"[a-f0-9]{12}", bt_id or ""):
         return None
     try:
         with open(os.path.join(OUT, f"{bt_id}.json"), encoding="utf-8") as fh:
-            return json.load(fh)
+            rec = json.load(fh)
     except (OSError, ValueError):
         return None
+    if rec.get("status") == "done" and "benchmark_metrics" not in rec:
+        # older result: score the stored (downsampled) SPY curve on the spot
+        cap = float((rec.get("options") or {}).get("initial_capital") or 100_000.0)
+        rec["benchmark_metrics"] = _runner_metrics(rec.get("benchmark_curve") or [], cap)
+        rec["benchmark_metrics"]["approximate"] = True
+        rec["vs_spy"] = versus_spy(rec.get("metrics") or {}, rec["benchmark_metrics"],
+                                   rec.get("equity_curve") or [], rec.get("benchmark_curve") or [])
+    return rec
 
 
 def delete(bt_id: str) -> bool:
@@ -252,10 +284,15 @@ def run(name: str, options: dict, who: str = "operator") -> str:
             res = run_sync(name, options)
         except Exception as exc:                           # noqa: BLE001
             res = {"error": str(exc)[:500]}
+        bench = _runner_metrics(res.get("benchmark_curve") or [],
+                                float((res.get("options") or {}).get("initial_capital") or 100_000.0))
         rec = {"id": bt_id, "strategy": name, "kind": kind_of(name), "created": created,
                "by": who, "options": res.get("options", options),
                "status": "error" if res.get("error") else "done",
                "error": res.get("error"), "metrics": res.get("metrics") or {},
+               "benchmark_metrics": bench,
+               "vs_spy": versus_spy(res.get("metrics") or {}, bench, res.get("equity_curve") or [],
+                                    res.get("benchmark_curve") or []),
                "params": res.get("params") or {}, "elapsed_s": res.get("elapsed_s"),
                "fills": len(res.get("fills") or []),
                "first_fills": (res.get("fills") or [])[:5],
@@ -271,7 +308,7 @@ def run(name: str, options: dict, who: str = "operator") -> str:
         os.replace(tmp, os.path.join(OUT, f"{bt_id}.json"))
         summary = {k: rec[k] for k in ("id", "strategy", "kind", "created", "by", "status",
                                        "error", "metrics", "params", "elapsed_s", "fills",
-                                       "options")}
+                                       "options", "benchmark_metrics", "vs_spy")}
         _upsert(summary)
 
     threading.Thread(target=work, name=f"bt-{bt_id}", daemon=True).start()
