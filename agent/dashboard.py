@@ -232,7 +232,7 @@ function renderStrats(s){
  if(cur)sel.value=cur; paramInputs('#bt-params',sel.value);
  const dsel=$('#dp-stem'); dsel.innerHTML=sel.innerHTML; if(cur)dsel.value=cur; paramInputs('#dp-params',dsel.value);
  $('#bt-strats').innerHTML=STRATS.map(x=>`<tr><td class=mono>${esc(x.name)}</td><td>${x.kind}</td><td class=mono>${esc((x.symbols||[]).join(' '))}</td><td>${Object.keys(x.params||{}).length}</td>
-  <td>${(x.dossiers||[]).map(d=>`<a href="${DOSSIER}${esc(d)}.md" target=_blank>${esc(d)}</a>`).join(', ')||'<span class=small>—</span>'}</td>
+  <td>${(x.dossiers||[]).map(d=>`<a href="#backtest&dossier=${esc(d)}" onclick="openDossier('${esc(d)}');return false">${esc(d)}</a>`).join(', ')||'<span class=small>—</span>'}</td>
   <td>${x.error?'<span class=bad>'+esc(x.error.slice(0,80))+'</span>':'<span class=ok>ok</span>'}</td></tr>`).join('');
  const ds=s.data||{}; $('#bt-data').textContent=Object.entries(ds).map(([k,v])=>k+' → '+v).join(' · ');
 }
@@ -272,6 +272,54 @@ function chart(a,b){if(a.length<2)return '<div class=small>no equity curve</div>
  <text x=${W-P} y=${H-6} fill="#8b98a9" font-size=12 text-anchor=end>${lo.toLocaleString()} – ${hi.toLocaleString()}</text></svg>`}
 window.prefillDeploy=(stem,paramsJson)=>{show('live'); $('#dp-stem').value=stem; paramInputs('#dp-params',stem); try{const p=JSON.parse(paramsJson); $$('input',$('#dp-params')).forEach(i=>{if(p[i.name]!=null)i.value=p[i.name]})}catch(e){} $('#dp-form').scrollIntoView({behavior:'smooth'})};
 
+/* ---------------- Dossiers: read, then reproduce in the lab engine ---------------- */
+function md(src){ /* minimal, deterministic: headings, bullets, bold, code, fences */
+ const lines=esc(src).split('\n'); let out='',inFence=false,inList=false;
+ const inline=s=>s.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/`([^`]+)`/g,'<code class=mono>$1</code>');
+ for(const l of lines){
+  if(l.startsWith('```')){ if(inList){out+='</ul>';inList=false} inFence=!inFence; out+=inFence?'<pre class="mono" style="white-space:pre-wrap;background:#0d1219;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:12px">':'</pre>'; continue }
+  if(inFence){ out+=l+'\n'; continue }
+  const h=l.match(/^(#{1,3}) (.*)/); if(h){ if(inList){out+='</ul>';inList=false} out+=`<h${h[1].length+1} style="margin:14px 0 6px;font-size:${h[1].length===1?18:14}px">${inline(h[2])}</h${h[1].length+1}>`; continue }
+  if(l.startsWith('- ')){ if(!inList){out+='<ul style="margin:4px 0 4px 18px">';inList=true} out+=`<li>${inline(l.slice(2))}</li>`; continue }
+  if(inList){out+='</ul>';inList=false}
+  if(l.trim()==='')continue; out+=`<p style="margin:6px 0">${inline(l)}</p>`}
+ if(inList)out+='</ul>'; return out}
+let DOSSIER_ID=null, DOSSIER_POLL=null;
+window.openDossier=async id=>{DOSSIER_ID=id; show('backtest'); try{history.replaceState(null,'','#backtest&dossier='+id)}catch(e){}
+ const box=$('#bt-dossier'); box.innerHTML='<div class=card><span class=small>loading dossier '+esc(id)+'…</span></div>'; box.scrollIntoView({behavior:'smooth'});
+ try{const d=await api('/api/dossiers/'+id); renderDossier(d)}catch(e){box.innerHTML='<div class=card><span class=bad>'+esc(e.message)+'</span></div>'}};
+function renderDossier(d){const v=d.verdict||{},p=d.prereg||{},r=d.reproduction;
+ const head=`<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap"><b style="font-size:16px">Dossier ${esc(d.id)}</b>
+  <span class=pill>${esc(p.filename||'?')}</span><span class=pill>objective ${esc(v.objective||p.objective||'?')}</span>
+  <span class="pill ${String(v.verdict||'').startsWith('ADOPT')?'ok':''}">${esc(v.verdict||'no verdict')}</span>
+  <a class=small href="${esc(d.forge)}" target=_blank>open on the forge</a>
+  <button class=b onclick="reproduce('${esc(d.id)}')" ${r&&r.status==='running'?'disabled':''}>${r&&r.status==='running'?'reproducing…':'Reproduce in the lab engine'}</button>
+  <button class="b ghost" onclick="$('#bt-dossier').innerHTML='';DOSSIER_ID=null">close</button></div>
+  <div class=small style="margin:6px 0 10px">Reproduce = baseline vs variant on the protocol's train and valid windows, at the protocol's costs, on the research container's own engine — the exact runs behind the verdict. Three columns: what was predicted, what the lab recorded, what the engine says now.</div>`;
+ $('#bt-dossier').innerHTML=`<div class=card>${head}${reproBlock(r)}<details ${r?'':'open'}><summary class=small style="cursor:pointer">dossier text</summary><div style="font-size:14px">${md(d.markdown||'')}</div></details></div>`;
+ if(r&&r.status==='running'){clearTimeout(DOSSIER_POLL);DOSSIER_POLL=setTimeout(()=>{if(DOSSIER_ID===d.id)openDossier(d.id)},4000)}}
+function reproBlock(r){ if(!r)return ''; if(r.status==='running')return `<div class=card style="margin:8px 0"><span class=warn>&#9679; running four engine backtests (baseline and variant, train and valid) — this takes a minute or two</span></div>`;
+ if(r.status==='error')return `<div class=card style="margin:8px 0"><b class=bad>reproduction failed</b><div class="mono small" style="white-space:pre-wrap">${esc(r.error)}</div></div>`;
+ const f=x=>(x==null||isNaN(x))?'—':(x>=0?'+':'')+Number(x).toFixed(4);
+ const lab=r.lab||{},pr=r.prediction||{};
+ const row=w=>{const R=r.reproduced[w],L=lab.delta?{delta:lab.delta[w],d_sortino:(lab.d_sortino||{})[w],dd_delta:(lab.dd_delta||{})[w]}:{},P=pr[w]||{};
+  return `<tr><td><b>${w}</b><div class=small>${esc((r.windows[w]||[]).join(' → '))}</div></td>
+   <td>${f(P.predicted)}</td><td>${f(L.delta)}</td><td><b>${f(R.delta)}</b></td>
+   <td class=small>${f(R.d_sortino)} <span style="color:var(--dim)">lab ${f(L.d_sortino)}</span></td>
+   <td class=small>${f(R.dd_delta)} <span style="color:var(--dim)">lab ${f(L.dd_delta)}</span></td>
+   <td>${P.direction_held==null?'—':P.direction_held?'<span class=ok>held</span>':'<span class=bad>wrong</span>'} <span class=small>err ${f(P.error)}</span></td>
+   <td>${esc((r.zones_now||{})[w]||'')}</td></tr>`};
+ const ok=r.reproduces===true, held=r.prediction_held===true;
+ return `<div class=card style="margin:8px 0;border-color:${ok&&held?'#14532d':ok?'#78350f':'#7f1d1d'}">
+  <div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:8px">
+   <span>reproduces the lab: <b class="${ok?'ok':r.reproduces===false?'bad':'warn'}">${r.reproduces===true?'YES':r.reproduces===false?'NO':'n/a'}</b> <span class=small>(noise floor ${r.noise_floor})</span></span>
+   <span>prediction delivered: <b class="${held?'ok':r.prediction_held===false?'bad':'warn'}">${r.prediction_held===true?'YES':r.prediction_held===false?'NO':'n/a'}</b></span>
+   <span>re-derived verdict: <b>${esc(r.verdict_rederived)}</b> <span class=small>lab: ${esc((r.lab||{}).verdict||'—')}</span></span></div>
+  <table><tr><th>window</th><th>predicted Δ</th><th>lab Δ</th><th>reproduced Δ</th><th>Δ Sortino</th><th>Δ maxDD</th><th>direction</th><th>zone now</th></tr>${row('train')}${row('valid')}</table>
+  <p style="margin-top:10px">${esc(r.conclusion)}</p>
+  <div class=small>objective ${esc(r.objective)} · params ${esc(JSON.stringify(r.variant_params))} over base ${esc(JSON.stringify(r.base_params))} · costs ${r.costs.slippage_bps}+${r.costs.commission_bps} bps, capital $${Number(r.costs.capital).toLocaleString()} · ${esc(r.engine)} · ${esc(r.finished)}</div></div>`}
+window.reproduce=async id=>{try{await api('/api/reproduce/'+id,'POST',{}); openDossier(id)}catch(e){note(e.message,true)}};
+
 /* ---------------- Live tab: deployments ---------------- */
 async function loadLive(){try{const s=await api('/api/live/status'); renderLive(s)}catch(e){note('live manager: '+e.message,true)}
  if(!STRATS.length){try{const s=await api('/api/strategies'); STRATS=s.strategies; const dsel=$('#dp-stem'); dsel.innerHTML=STRATS.map(x=>`<option value="${esc(x.name)}">${esc(x.name)} · ${x.kind}</option>`).join(''); paramInputs('#dp-params',dsel.value)}catch(e){}}}
@@ -308,6 +356,7 @@ $('#dp-form').onsubmit=async e=>{e.preventDefault(); const f=e.target; const bod
 
 /* ---------------- boot ---------------- */
 const h=(location.hash||'#live').slice(1).split(/[&;]/)[0]; show(['live','research','backtest'].includes(h)?h:'live');
+try{const dm=(location.hash||'').match(/[#&;]dossier=([A-Za-z0-9._-]+)/); if(dm)openDossier(dm[1])}catch(e){}
 setInterval(()=>{if(document.activeElement&&['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName))return; if($('#p-live').classList.contains('on'))location.reload()},90000);
 """
 
@@ -460,6 +509,7 @@ Running needs the operator key; results are public.</p>
 <div class="sec"><h2>Results</h2>
 <table><tr><th>when</th><th>strategy</th><th>status</th><th>CAGR</th><th>return</th><th>max DD</th><th>Sharpe</th><th>trades</th><th>window</th><th></th></tr><tbody id="bt-results"></tbody></table></div>
 <div class="sec" id="bt-detail"></div>
+<div class="sec" id="bt-dossier"></div>
 <div class="sec"><h2>Strategies</h2>
 <table><tr><th>file</th><th>kind</th><th>universe</th><th>params</th><th>adoption dossiers</th><th>inspect</th></tr><tbody id="bt-strats"></tbody></table>
 <div class="small" style="margin-top:8px">history: <span id="bt-data" class="mono"></span></div></div>
@@ -639,6 +689,23 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/live/status":
                 import live_manager
                 return self._send(200, live_manager.status())
+            if path == "/api/dossiers":
+                import reproduce
+                return self._send(200, {"dossiers": reproduce.dossiers()})
+            if path.startswith("/api/dossiers/"):
+                import reproduce
+                hid = path.rsplit("/", 1)[-1]
+                try:
+                    h = reproduce.hypothesis(hid)
+                except KeyError:
+                    h = {"prereg": None, "verdict": None}
+                try:
+                    md = reproduce.markdown(hid)
+                except OSError:
+                    return self._send(404, {"error": "no such dossier"})
+                return self._send(200, {"id": hid, "markdown": md, "prereg": h["prereg"],
+                                        "verdict": h["verdict"], "reproduction": reproduce.latest(hid),
+                                        "forge": DOSSIER_URL + hid + ".md"})
             if path == "/api/operator-key":
                 # Hands the key to a browser ON THIS MACHINE, so the stable
                 # landing page can fill it in by itself when the operator opens
@@ -669,6 +736,12 @@ class Handler(BaseHTTPRequestHandler):
                 import backtests
                 bt_id = backtests.run(str(body.get("strategy") or ""), body)
                 return self._send(202, {"id": bt_id})
+            if path.startswith("/api/reproduce/"):
+                import reproduce
+                try:
+                    return self._send(202, reproduce.start(path.rsplit("/", 1)[-1]))
+                except RuntimeError as exc:
+                    return self._send(409, {"error": str(exc)})
             import live_manager
             if path == "/api/live/deployments":
                 return self._send(201, live_manager.deploy(body))

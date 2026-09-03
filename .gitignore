@@ -27,3 +27,4 @@ engine/data/*
 !engine/data/XLP.csv
 !engine/data/HYG.csv
 !engine/data/FDN.csv
+journal/reproductions/
