@@ -323,7 +323,27 @@ window.reproduce=async id=>{try{await api('/api/reproduce/'+id,'POST',{}); openD
 /* ---------------- Live tab: deployments ---------------- */
 async function loadLive(){try{const s=await api('/api/live/status'); renderLive(s)}catch(e){note('live manager: '+e.message,true)}
  if(!STRATS.length){try{const s=await api('/api/strategies'); STRATS=s.strategies; const dsel=$('#dp-stem'); dsel.innerHTML=STRATS.map(x=>`<option value="${esc(x.name)}">${esc(x.name)} · ${x.kind}</option>`).join(''); paramInputs('#dp-params',dsel.value)}catch(e){}}}
+function renderAlloc(s){const box=$('#lm-alloc'); if(!box)return; const eq=+box.dataset.equity||0; const agentOn=box.dataset.agent==='on';
+ const live=s.deployments.filter(d=>d.mode==='live'&&(d.status||{}).state==='active');
+ const shadow=s.deployments.filter(d=>d.mode==='shadow'&&(d.status||{}).state==='active');
+ const sum=live.reduce((a,d)=>a+(+d.alloc_pct||0),0); const rest=Math.max(0,100-sum);
+ const colors=['#60a5fa','#34d399','#fbbf24','#f472b6','#a78bfa','#fb923c'];
+ const rows=[]; live.forEach((d,i)=>{const nav=d.last_nav!=null?+d.last_nav:null; const cur=(nav!=null&&eq>0)?100*nav/eq:null;
+  rows.push({name:d.display_name,stem:d.stem,acct:d.account_id,alloc:+d.alloc_pct,cur,nav,rule:d.rule,color:colors[i%colors.length],kind:'live'})});
+ if(agentOn)rows.push({name:'EdgeStack agent',stem:'agent/run_agent.py — core 0.70 NAV, sleeve ≤0.60, options behind 14 gates',acct:'competition',alloc:rest,cur:null,nav:null,rule:null,color:'#94a3b8',kind:'agent'});
+ const bar=rows.filter(r=>r.alloc>0).map(r=>`<div title="${esc(r.name)} ${r.alloc.toFixed(1)}%" style="width:${Math.min(100,r.alloc)}%;background:${r.color}"></div>`).join('');
+ const over=sum>100?`<div class=bad style="margin:6px 0">live allocations total ${sum.toFixed(1)}% — over 100%; the agent and the deployments will contend for the same equity</div>`:'';
+ box.innerHTML=`<div style="display:flex;height:14px;border-radius:7px;overflow:hidden;background:#1f2937;margin:4px 0 10px">${bar}</div>${over}
+  <table><tr><th>strategy</th><th>account</th><th>allocated</th><th>current model NAV</th><th>kill rule</th></tr>
+  ${rows.map(r=>`<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${r.color};margin-right:8px"></span><b>${esc(r.name)}</b><div class="small mono">${esc(r.stem)}</div></td>
+   <td class=mono>${esc(r.acct||'—')}</td><td><b>${r.alloc.toFixed(1)}%</b>${r.kind==='agent'?'<div class=small>the remainder: it sizes off NAV, not a slice</div>':eq>0?'<div class=small>≈ $'+Math.round(eq*r.alloc/100).toLocaleString()+'</div>':''}</td>
+   <td>${r.cur!=null?r.cur.toFixed(1)+'% <span class=small>($'+Math.round(r.nav).toLocaleString()+')</span>':'<span class=small>—</span>'}</td>
+   <td class=small>${r.rule?`${r.rule.threshold_pct}% / ${r.rule.resolution}`:(r.kind==='agent'?'equity gate + 14 deterministic gates':'none')}</td></tr>`).join('')}
+  ${shadow.length?`<tr><td colspan=5 class=small>shadow (not trading): ${shadow.map(d=>esc(d.display_name)+' ($'+(+d.shadow_capital||0).toLocaleString()+' virtual)').join(' · ')}</td></tr>`:''}
+  ${!live.length&&!agentOn?'<tr><td colspan=5 class=small>nothing is deployed live on this instance</td></tr>':''}</table>
+  <div class=small style="margin-top:6px">account equity $${Math.round(eq).toLocaleString()} · live deployments ${live.length} · allocated to deployments ${sum.toFixed(1)}%</div>`}
 function renderLive(s){
+ renderAlloc(s);
  $('#lm-loop').innerHTML=s.loop_alive?'<span class=ok>&#9679; manager loop alive</span>':'<span class=warn>&#9679; manager loop not running (host/run.py live)</span>';
  $('#lm-kill').innerHTML=s.kill_switch?`<span class=bad><b>GLOBAL KILL SWITCH ARMED</b> — no order leaves this machine</span> <button class="b ghost" onclick="killSwitch(false)">disarm</button>`
   :`<span class=ok>kill switch disarmed</span> <button class="b danger" onclick="killSwitch(true)">ARM global kill switch</button>`;
@@ -457,6 +477,9 @@ disjoint windows 0.80&rarr;0.98 / 0.65&rarr;1.02</span>
 '''}
 <div class="sec"><h2>Decision journal (latest sessions)</h2>
 <table><tr><th>session</th><th>signals</th><th>what happened &amp; why</th></tr>{rows or '<tr><td colspan=3 class=small>no agent sessions on this instance</td></tr>'}</table></div>
+
+<div class="sec"><h2>Live allocation — what is trading this account, and how much of it</h2>
+<div id="lm-alloc" data-equity="{eq:.2f}" data-agent="{'off' if PRIVATE else 'on'}"><span class="small">loading…</span></div></div>
 
 <div class="sec"><h2>Live Manager — deployments</h2>
 <div class="small" style="margin-bottom:8px">Deploy any strategy module against a slice of an account with a drawdown kill switch,
