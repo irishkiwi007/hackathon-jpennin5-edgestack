@@ -91,6 +91,11 @@ function frames(){{const k=okey.value.trim();const s=t=>"{url}/?embed=1#"+t+(k?'
 document.querySelector('#p-live iframe').src=s('live');document.querySelector('#p-backtest iframe').src=s('backtest')}}
 okey.onchange=()=>{{try{{localStorage.setItem('opkey',okey.value.trim())}}catch(e){{}}frames()}};
 if(okey.value)frames();
+/* On the operator's own machine the dashboard is listening on loopback and will hand this
+   page its key (to this origin only, and only to a local browser). Anywhere else the fetch
+   just fails and the field stays empty. */
+(async()=>{{if(okey.value)return;try{{const r=await fetch('http://127.0.0.1:8787/api/operator-key',{{mode:'cors',credentials:'omit'}});
+if(!r.ok)return;const j=await r.json();if(j&&j.key){{okey.value=j.key;try{{localStorage.setItem('opkey',j.key)}}catch(e){{}}frames()}}}}catch(e){{}}}})();
 </script></body></html>"""
 
 

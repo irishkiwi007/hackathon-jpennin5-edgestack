@@ -506,8 +506,19 @@ def access(line: str) -> None:
         pass
 
 
+STABLE_PAGE_ORIGIN = "https://jpennin5.github.io"      # the landing page's permanent origin
+
+
+def origin_allowed(origin: str) -> bool:
+    """Origins that may make cross-origin calls here: this machine, the tunnel
+    the page is served through, and the stable landing page that embeds it."""
+    host = origin.split("//")[-1].split(":")[0]
+    return (host in ("127.0.0.1", "localhost") or origin == STABLE_PAGE_ORIGIN
+            or origin.endswith(".trycloudflare.com"))
+
+
 class Handler(BaseHTTPRequestHandler):
-    def _send(self, code: int, body, ctype="application/json"):
+    def _send(self, code: int, body, ctype="application/json", cors_origin: str | None = None):
         if not isinstance(body, (bytes, str)):
             body = json.dumps(body, default=str)
         if isinstance(body, str):
@@ -516,6 +527,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", ctype if ctype != "application/json" else "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        if cors_origin:
+            self.send_header("Access-Control-Allow-Origin", cors_origin)
+            self.send_header("Vary", "Origin")
         self.end_headers()
         self.wfile.write(body)
         if not self.path.startswith("/api"):
@@ -583,6 +597,19 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/live/status":
                 import live_manager
                 return self._send(200, live_manager.status())
+            if path == "/api/operator-key":
+                # Hands the key to a browser ON THIS MACHINE, so the stable
+                # landing page can fill it in by itself when the operator opens
+                # it here. Two locks: the request must be local (loopback with
+                # no tunnel headers), and the answer is readable only by the
+                # landing page's own origin - any other site in the same
+                # browser gets an opaque response the browser will not let it
+                # read. Elsewhere in the world the fetch simply fails.
+                origin = self.headers.get("Origin") or ""
+                if self._local_operator() and (not origin or origin == STABLE_PAGE_ORIGIN
+                                               or origin_allowed(origin) and "trycloudflare" not in origin):
+                    return self._send(200, {"key": operator_token()}, cors_origin=origin or None)
+                return self._send(403, {"error": "the key is only handed to a browser on the host"})
             if path.startswith("/api"):
                 return self._send(404, {"error": "no such route"})
             return self._send(200, render(collect(), local=self._local_operator()),
@@ -644,14 +671,17 @@ class Handler(BaseHTTPRequestHandler):
         header, so the browser preflights it. Without this the base class
         answers 501 with an HTML body and the page reports only "bad json"."""
         origin = self.headers.get("Origin") or ""
-        host = origin.split("//")[-1].split(":")[0]
-        allowed = host in ("127.0.0.1", "localhost") or origin.endswith(".trycloudflare.com")
+        allowed = bool(origin) and origin_allowed(origin)
         self.send_response(204 if allowed else 403)
         if allowed:
             self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
             self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
             self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Operator-Token")
             self.send_header("Access-Control-Max-Age", "600")
+            if self.headers.get("Access-Control-Request-Private-Network"):
+                # Chrome asks before letting a public page reach loopback.
+                self.send_header("Access-Control-Allow-Private-Network", "true")
         self.send_header("Content-Length", "0")
         self.end_headers()
         access(f"{204 if allowed else 403} OPTIONS {self.path} origin={origin or '-'}")
