@@ -176,8 +176,22 @@ def main() -> int:
             continue
         except Exception as exc:           # noqa: BLE001
             log(f"supervisor error: {exc}")
+        # The tunnel IS the public deliverable, and its usual failure is
+        # transient: on 2026-09-02 cloudflared could not reach
+        # api.trycloudflare.com for 30 minutes ("x509: certificate signed by
+        # unknown authority" — something on this machine intercepts TLS
+        # intermittently, the same fault that killed a trading pass earlier),
+        # and a 120s backoff turned each blip into minutes of dead link. Retry
+        # it hard; a wasted request costs nothing next to an unreachable demo.
+        try:
+            with open(log_path, encoding="utf-8", errors="replace") as fh:
+                fh.seek(max(0, os.path.getsize(log_path) - 4000))
+                if "failed to request quick Tunnel" in fh.read():
+                    log("quick-tunnel request failed upstream (transient); retrying shortly")
+        except OSError:
+            pass
         time.sleep(backoff)
-        backoff = min(backoff * 2, 120)
+        backoff = min(backoff * 2, 20 if mode == "tunnel" else 120)
 
 
 if __name__ == "__main__":
