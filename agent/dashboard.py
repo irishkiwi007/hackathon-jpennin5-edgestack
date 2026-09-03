@@ -697,11 +697,8 @@ class Handler(BaseHTTPRequestHandler):
                 hid = path.rsplit("/", 1)[-1]
                 try:
                     h = reproduce.hypothesis(hid)
-                except KeyError:
-                    h = {"prereg": None, "verdict": None}
-                try:
                     md = reproduce.markdown(hid)
-                except OSError:
+                except (KeyError, ValueError, OSError):
                     return self._send(404, {"error": "no such dossier"})
                 return self._send(200, {"id": hid, "markdown": md, "prereg": h["prereg"],
                                         "verdict": h["verdict"], "reproduction": reproduce.latest(hid),

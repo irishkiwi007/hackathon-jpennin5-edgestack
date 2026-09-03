@@ -108,6 +108,20 @@ def events():
                     continue
 
 
+def servable(filename: str | None) -> bool:
+    """A dossier may be shown only if its strategy is one THIS instance holds.
+    The journal mirror on the host carries every dossier, including those of
+    the operator's private strategies; the public instance's strategy set is
+    the allowlisted copy, so this is the same privacy line the Backtest tab
+    already draws (2026-09-02)."""
+    import backtests
+    try:
+        backtests.strategy_path(str(filename or ""))
+        return True
+    except (ValueError, FileNotFoundError):
+        return False
+
+
 def hypothesis(hid: str) -> dict:
     if not re.fullmatch(r"[A-Za-z0-9._-]{1,40}", hid or ""):
         raise ValueError("bad hypothesis id")
@@ -119,8 +133,8 @@ def hypothesis(hid: str) -> dict:
             pre = e
         elif e.get("type") == "verdict":
             ver = e
-    if not pre:
-        raise KeyError(f"no pre-registration for {hid} in the journal mirror")
+    if not pre or not servable(pre.get("filename")):
+        raise KeyError(f"no pre-registration for {hid} in this instance's journal view")
     return {"prereg": pre, "verdict": ver}
 
 
@@ -142,6 +156,8 @@ def dossiers() -> list[dict]:
             continue
         hid = n[:-3]
         v, p = verdicts.get(hid, {}), pre.get(hid, {})
+        if not servable(p.get("filename")):
+            continue
         rep = latest(hid)
         out.append({"id": hid, "strategy": p.get("filename"), "family": v.get("family_root") or p.get("family_root"),
                     "objective": v.get("objective") or p.get("objective"), "verdict": v.get("verdict"),
@@ -152,8 +168,7 @@ def dossiers() -> list[dict]:
 
 
 def markdown(hid: str) -> str:
-    if not re.fullmatch(r"[A-Za-z0-9._-]{1,40}", hid or ""):
-        raise ValueError("bad hypothesis id")
+    hypothesis(hid)                        # raises KeyError unless servable here
     with open(os.path.join(LAB_REPORTS, f"{hid}.md"), encoding="utf-8", errors="replace") as fh:
         return fh.read()
 
