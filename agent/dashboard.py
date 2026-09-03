@@ -211,11 +211,17 @@ try{if(!$('#opkey input').value)$('#opkey input').value=key();
  const v=$('#opkey input').value.trim(); if(v&&v!==key())localStorage.setItem('opkey',v)}catch(e){}
 $('#opkey input').onchange=e=>{try{localStorage.setItem('opkey',e.target.value.trim())}catch(x){} note('operator key stored in this browser')};
 function note(m,bad){const b=$('#msg');b.textContent=m;b.style.display='block';b.style.borderColor=bad?'#f87171':'#374151';clearTimeout(b._t);b._t=setTimeout(()=>b.style.display='none',6000)}
-async function api(path,method='GET',body){
+/* Reads travel through a quick tunnel that drops for a second or two now and then; a click
+   that lands in a drop used to surface as a bare error. GETs retry twice with a pause, and
+   the message names the tunnel when that is the cause. */
+const sleep=ms=>new Promise(z=>setTimeout(z,ms));
+async function api(path,method='GET',body,attempt=0){
  let r; try{r=await fetch(path,{method,headers:{'Content-Type':'application/json','X-Operator-Token':key()},body:body?JSON.stringify(body):undefined})}
- catch(e){throw new Error(method+' '+path+' could not reach the dashboard: '+e.message)}
+ catch(e){if(method==='GET'&&attempt<2){await sleep(1500);return api(path,method,body,attempt+1)}
+  throw new Error(method+' '+path+' could not reach the dashboard — the public tunnel dropped for a moment; try again ('+e.message+')')}
  const txt=await r.text(); let j=null; try{j=JSON.parse(txt)}catch(e){}
- if(j===null){throw new Error('HTTP '+r.status+' '+r.statusText+' from '+path+' — not JSON: '+txt.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,160))}
+ if(j===null){if(method==='GET'&&attempt<2){await sleep(1500);return api(path,method,body,attempt+1)}
+  throw new Error('the tunnel answered '+path+' with HTTP '+r.status+' and no JSON — a momentary tunnel drop; try again ('+txt.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,120)+')')}
  if(!r.ok)throw new Error(j.error||('HTTP '+r.status+' from '+path));
  return j}
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
