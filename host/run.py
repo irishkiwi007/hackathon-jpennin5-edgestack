@@ -164,6 +164,24 @@ def main() -> int:
         with open(log_path, "a", encoding="utf-8") as fh:
             fh.write(f"[{stamp}] {msg}\n")
 
+    # Ensure-running for EVERY mode (2026-09-04): the port check covers mcp and
+    # the dashboard, but a second logon once started a second scheduler and a
+    # second Live Manager - two processes that place orders. A per-mode lock
+    # (this supervisor's PID, checked for liveness) makes a duplicate exit.
+    lock_path = os.path.join(JOURNAL, f"{mode}.supervisor.lock")
+    try:
+        other = int(open(lock_path, encoding="utf-8").read().strip() or 0)
+    except (OSError, ValueError):
+        other = 0
+    if other and other != os.getpid():
+        import ctypes
+        h = ctypes.windll.kernel32.OpenProcess(0x1000, False, other)   # PROCESS_QUERY_LIMITED_INFORMATION
+        if h:
+            ctypes.windll.kernel32.CloseHandle(h)
+            log(f"another '{mode}' supervisor (pid {other}) is alive; this one exits")
+            return 0
+    with open(lock_path, "w", encoding="utf-8") as fh:
+        fh.write(str(os.getpid()))
     log(f"supervisor up for '{mode}'")
     while True:
         if spec["port"] and port_up(spec["port"]):

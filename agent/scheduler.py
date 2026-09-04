@@ -53,6 +53,21 @@ def log(msg: str) -> None:
         pass
 
 
+def _stamp_in_window(stamp: str, hh: int, mm: int) -> bool:
+    """A decision record's timestamp (ISO, any zone) falls within 25 minutes
+    after the pass target in ET."""
+    try:
+        t = datetime.datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+        if t.tzinfo is None:
+            t = t.replace(tzinfo=datetime.timezone.utc)
+        from zoneinfo import ZoneInfo
+        t = t.astimezone(ZoneInfo("America/New_York"))
+        start = t.replace(hour=hh, minute=mm, second=0, microsecond=0)
+        return start <= t <= start + datetime.timedelta(minutes=25)
+    except Exception:                                    # noqa: BLE001
+        return False
+
+
 def run_pass(kind: str) -> None:
     args = [sys.executable, os.path.join(HERE, "run_agent.py")]
     if kind == "exit":
@@ -104,6 +119,30 @@ def main() -> int:
 
     log("scheduler up; exit pass {:02d}:{:02d} ET, entry pass {:02d}:{:02d} ET".format(
         *EXIT_AT, *ENTRY_AT))
+    # 2026-09-04: the host was down 11:18-22:07 ET on 2026-09-03 and the entry
+    # pass never ran; nothing said so. If this process starts on a weekday
+    # after a pass window has closed and the day's journal has no record of
+    # that pass, say it here in plain words (the dashboard shows it too).
+    try:
+        n0 = now_et()
+        if n0.weekday() < 5:
+            import json as _json
+            recs = []
+            try:
+                with open(os.path.join(HERE, "..", "journal", "decisions.jsonl"), encoding="utf-8") as fh:
+                    recs = [_json.loads(l) for l in fh if l.strip()]
+            except OSError:
+                pass
+            today = n0.date().isoformat()
+            stamps = [str(r.get("timestamp", "")) for r in recs if r.get("session_date") == today]
+            for kind, (hh, mm) in (("exit", EXIT_AT), ("entry", ENTRY_AT)):
+                closed = n0.time() > datetime.time(hh, mm + 10)
+                ran = any(_stamp_in_window(s, hh, mm) for s in stamps)
+                if closed and not ran:
+                    log(f"!! MISSED the {kind} pass today ({today}): the host was not running at "
+                        f"{hh:02d}:{mm:02d} ET and the window has closed - no orders were placed")
+    except Exception as exc:                             # noqa: BLE001
+        log(f"missed-pass check failed: {exc}")
     done: set[tuple[str, str]] = set()
     while True:
         try:

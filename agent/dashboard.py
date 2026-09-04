@@ -104,6 +104,39 @@ def collect() -> dict:
 
         recs = _read_jsonl(os.path.join(JOURNAL, "decisions.jsonl"))
         latest = recs[-1] if recs else {}
+        # Missed passes (2026-09-04): the host was down through the 15:45 ET
+        # entry pass on 2026-09-03 and nothing on this page said so. For the
+        # last three weekdays, was there a record inside each pass window?
+        missed = []
+        try:
+            from zoneinfo import ZoneInfo
+            et = ZoneInfo("America/New_York")
+            all_recs = _read_jsonl(os.path.join(JOURNAL, "decisions.jsonl"), last_n=200)
+            stamps: dict = {}
+            for r in all_recs:
+                try:
+                    t = datetime.datetime.fromisoformat(str(r.get("timestamp", "")).replace("Z", "+00:00"))
+                    t = (t if t.tzinfo else t.replace(tzinfo=datetime.timezone.utc)).astimezone(et)
+                    stamps.setdefault(t.date().isoformat(), []).append(t)
+                except Exception:                       # noqa: BLE001
+                    continue
+            now_et = datetime.datetime.now(et)
+            d = now_et.date()
+            checked = 0
+            while checked < 3:
+                if d.weekday() < 5:
+                    for kind, (hh, mm) in (("exit", (9, 31)), ("entry", (15, 45))):
+                        target = datetime.datetime.combine(d, datetime.time(hh, mm), et)
+                        if now_et < target + datetime.timedelta(minutes=10):
+                            continue                    # window not closed yet
+                        ran = any(target <= t <= target + datetime.timedelta(minutes=25)
+                                  for t in stamps.get(d.isoformat(), []))
+                        if not ran:
+                            missed.append({"date": d.isoformat(), "pass": kind})
+                    checked += 1
+                d -= datetime.timedelta(days=1)
+        except Exception:                               # noqa: BLE001
+            pass
         sched_alive = False
         try:
             mt = os.path.getmtime(os.path.join(JOURNAL, "scheduler.log"))
@@ -122,6 +155,7 @@ def collect() -> dict:
             },
             "broker_routes": routes[-6:],
             "scheduler_alive": sched_alive,
+            "missed_passes": missed,
             "equity_state": _read_json(os.path.join(JOURNAL, "equity_state.json"),
                                        {"core": None, "sleeve": []}),
             "option_trades": _read_json(os.path.join(JOURNAL, "open_trades.json"), []),
@@ -487,6 +521,10 @@ def render_live(d: dict) -> str:
     'Evidence opens the door to opportunity &middot; 33 years of evidence, three backtest engines, one graveyard'}
 &middot; Alpaca paper account <span class="mono">{esc(a['number'])}</span></p>
 
+{('<div class="card" style="border-color:#7f1d1d;margin-bottom:14px"><div class="k bad">Missed passes</div>'
+  + ''.join(f'<div class="bad">{esc(m["date"])} — the {esc(m["pass"])} pass did not run: the host was not up at its '
+            f'{"15:45" if m["pass"] == "entry" else "09:31"} ET window, so no orders were placed that session.</div>'
+            for m in d.get("missed_passes") or []) + '</div>') if d.get("missed_passes") else ''}
 <div class="grid">
 <div class="card"><div class="k">Equity</div><div class="v">${eq:,.0f}</div>
 <div class="{pnl_cls}">{pnl:+,.0f} vs $100k start</div></div>
@@ -878,6 +916,13 @@ class Handler(BaseHTTPRequestHandler):
 
     def log_message(self, fmt, *args):                 # quiet
         pass
+
+    def handle_error(self, request, client_address):   # a client hanging up is not an error
+        import sys as _sys
+        exc = _sys.exc_info()[1]
+        if isinstance(exc, (ConnectionAbortedError, ConnectionResetError, BrokenPipeError)):
+            return
+        super().handle_error(request, client_address)
 
 
 if __name__ == "__main__":
