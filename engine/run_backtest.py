@@ -131,6 +131,22 @@ def _load_rate(path: Path, start: Optional[Date], end: Optional[Date]) -> Dict[s
     return rows
 
 
+def _rule_text(signals: Optional[Dict], limit: int = 160) -> str:
+    """EdgeStack addition (2026-09-03): the strategy's signal dict at decision
+    time, compacted to one line - what the trades table shows as the rule."""
+    if not isinstance(signals, dict) or not signals:
+        return ""
+    parts = []
+    for k, v in signals.items():
+        if isinstance(v, float):
+            s = f"{v:+.2%}" if abs(v) < 1.5 and k.lower().startswith(("r", "ret", "chg", "mom", "stretch")) else f"{v:.3g}"
+        else:
+            s = str(v)
+        parts.append(f"{k}={s}")
+    out = " | ".join(parts)
+    return out if len(out) <= limit else out[:limit - 1] + "…"
+
+
 # ---------------------------------------------------------------------------
 # Portfolio + execution
 # ---------------------------------------------------------------------------
@@ -160,7 +176,10 @@ class SimplePortfolio:
         self._pending_weights: Optional[Dict[str, float]] = None
         self._active_weights: Dict[str, float] = {}  # weights from last execution
 
-    def queue_weights(self, weights: Dict[str, float]) -> None:
+    def queue_weights(self, weights: Dict[str, float], signals: Optional[Dict] = None) -> None:
+        # EdgeStack addition (2026-09-03): remember the strategy's own signal
+        # dict at decision time, so every fill can say what triggered it.
+        self._pending_rule = _rule_text(signals)
         # Skip if the new weights are effectively identical to the last executed
         # set (i.e., strategy is just "holding" with no meaningful change).
         if self._active_weights:
@@ -184,6 +203,7 @@ class SimplePortfolio:
         fills = []
         target = self._pending_weights
         self._pending_weights = None
+        rule = getattr(self, "_pending_rule", "")
         # Record these as the new active weights so subsequent identical calls
         # are skipped by queue_weights.
         self._active_weights = dict(target)
@@ -224,6 +244,7 @@ class SimplePortfolio:
                 "qty":        abs(delta),
                 "price":      round(exec_price, 4),
                 "commission": round(commission, 4),
+                "rule":       rule,
             })
 
         # Liquidate any symbols that dropped out of the target set.
@@ -242,6 +263,7 @@ class SimplePortfolio:
                     "side": "sell", "qty": abs(shares),
                     "price": round(exec_price, 4),
                     "commission": round(commission, 4),
+                    "rule": rule,
                 })
                 self.positions[symbol] = 0
 
@@ -540,7 +562,7 @@ def run_backtest(strategy_path: str, data_dir: str, options: Dict) -> Dict:
             weights, _signals = {}, {"error": str(exc)[:200]}
 
         if is_live:
-            portfolio.queue_weights(weights)
+            portfolio.queue_weights(weights, _signals)
             equity_curve.append({"date": date_str, "equity": round(portfolio.nav(bars_today), 2)})
 
     # Execute any final pending orders (not needed for metrics — omit).

@@ -281,8 +281,22 @@ function drawResult(r){const box=$('#bt-detail'); const m=r.metrics||{};
   ${chart(r.equity_curve||[],r.benchmark_curve||[])}
   ${cmp}
   <div class=small style="margin-top:8px">params used: <span class=mono>${esc(JSON.stringify(r.params||{}))}</span></div>
+  ${tradesTable(r)}
   <div class=small>final target weights (last bar): <span class=mono>${esc(JSON.stringify(r.final_weights||{}))}</span></div>
   <div style="margin-top:10px"><button class=b onclick="prefillDeploy('${esc(r.strategy)}',${esc(JSON.stringify(JSON.stringify(r.params||{})))})">Deploy this strategy…</button></div></div>`}
+/* Every round trip the strategy actually placed: buys and sells paired per position, P&L net of
+   both commissions, the strategy's own signals at decision time as the rule. Newest first, in a
+   scrollable box. Older results (before 2026-09-03) did not store their fills. */
+function tradesTable(r){const T=r.trades; const n=T?T.length:0; const money=x=>x==null?'—':'$'+Number(x).toFixed(2);
+ const head=`<div class=sec><h2>Trades — ${n} round trip${n===1?'':'s'} <span class=small style="text-transform:none;letter-spacing:0">buy &amp; sell paired per position · P&amp;L nets commissions · rules show what triggered entry and exit · newest first</span></h2>`;
+ if(!T)return head+`<div class=small>trades were not stored for this older run — run it again to see them</div></div>`;
+ if(!n)return head+`<div class=small>the strategy placed no trades in this window</div></div>`;
+ const rule=s=>s?`<span class="small mono" title="${esc(s)}">${esc(s.length>44?s.slice(0,43)+'…':s)}</span>`:'<span class=small>—</span>';
+ const rows=T.map(t=>`<tr><td class=small>${t.n}</td><td><b>${esc(t.symbol)}</b></td><td class=mono>${t.qty}</td>
+  <td class=mono>${esc(t.entry_date||'')}</td><td class=mono>${money(t.entry_px)}</td><td>${rule(t.entry_rule)}</td>
+  <td class=mono>${t.exit_date?esc(t.exit_date):'—'}</td><td class=mono>${t.exit_px!=null?money(t.exit_px):'—'}</td><td>${t.open?'':rule(t.exit_rule)}</td>
+  <td style="text-align:right">${t.open?'<span class=pill style="color:var(--amber);border-color:var(--amber)">open</span>':`<b class="${t.pnl_pct>=0?'ok':'bad'}">${t.pnl_pct>=0?'+':''}${Number(t.pnl_pct).toFixed(2)}%</b><div class=small>${money(t.pnl_usd)}</div>`}</td></tr>`).join('');
+ return head+`<div style="max-height:380px;overflow:auto;border:1px solid var(--line);border-radius:10px"><table><thead style="position:sticky;top:0;background:var(--card)"><tr><th>#</th><th>symbol</th><th>shares</th><th>entry</th><th>entry $</th><th>entry rule</th><th>exit</th><th>exit $</th><th>exit rule</th><th style="text-align:right">P&amp;L</th></tr></thead><tbody>${rows}</tbody></table></div></div>`}
 function chart(a,b){if(a.length<2)return '<div class=small>no equity curve</div>'; const W=1000,H=260,P=28; const all=a.concat(b).map(p=>p.equity); const lo=Math.min(...all),hi=Math.max(...all);
  const x=(i,n)=>P+(W-2*P)*i/(n-1), y=v=>H-P-(H-2*P)*(v-lo)/((hi-lo)||1);
  const path=(s)=>s.map((p,i)=>(i?'L':'M')+x(i,s.length).toFixed(1)+' '+y(p.equity).toFixed(1)).join(' ');

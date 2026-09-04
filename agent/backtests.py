@@ -182,6 +182,53 @@ def results() -> list[dict]:
     return sorted(_load_index(), key=lambda r: r.get("created", ""), reverse=True)
 
 
+def round_trips(fills: list[dict]) -> list[dict]:
+    """Pair buys and sells per symbol, FIFO, into round trips - what the
+    strategy actually did. A partial exit closes part of the oldest lot; a
+    position still held at the end is listed as open. P&L nets both
+    commissions. Newest first."""
+    from collections import defaultdict
+    lots: dict[str, list] = defaultdict(list)          # symbol -> [entry lots]
+    trips: list[dict] = []
+    for f in fills or []:
+        sym, side = f.get("symbol"), f.get("side")
+        qty, px = float(f.get("qty") or 0), float(f.get("price") or 0)
+        comm, rule = float(f.get("commission") or 0), str(f.get("rule") or "")
+        if qty <= 0 or px <= 0:
+            continue
+        if side == "buy":
+            lots[sym].append({"date": f.get("date"), "px": px, "qty": qty, "comm": comm, "rule": rule})
+            continue
+        remaining = qty
+        while remaining > 1e-9 and lots[sym]:
+            lot = lots[sym][0]
+            m = min(remaining, lot["qty"])
+            share_in = lot["comm"] * (m / lot["qty"]) if lot["qty"] else 0.0
+            share_out = comm * (m / qty)
+            pnl = m * (px - lot["px"]) - share_in - share_out
+            trips.append({"symbol": sym, "qty": round(m, 3), "entry_date": lot["date"],
+                          "entry_px": round(lot["px"], 4), "entry_rule": lot["rule"],
+                          "exit_date": f.get("date"), "exit_px": round(px, 4), "exit_rule": rule,
+                          "pnl_usd": round(pnl, 2),
+                          "pnl_pct": round(pnl / (m * lot["px"]) * 100, 3) if lot["px"] else None,
+                          "open": False})
+            remaining -= m
+            lot["qty"] -= m
+            lot["comm"] -= share_in
+            if lot["qty"] <= 1e-9:
+                lots[sym].pop(0)
+    for sym, ls in lots.items():
+        for lot in ls:
+            trips.append({"symbol": sym, "qty": round(lot["qty"], 3), "entry_date": lot["date"],
+                          "entry_px": round(lot["px"], 4), "entry_rule": lot["rule"],
+                          "exit_date": None, "exit_px": None, "exit_rule": None,
+                          "pnl_usd": None, "pnl_pct": None, "open": True})
+    trips.sort(key=lambda t: (t["entry_date"] or "", t["exit_date"] or "9999"), reverse=True)
+    for i, t in enumerate(trips):
+        t["n"] = len(trips) - i
+    return trips
+
+
 def _runner_metrics(curve: list[dict], capital: float) -> dict:
     """The engine runner's own metric function, applied to any equity curve — so
     SPY buy-and-hold is scored by exactly the code that scores the strategy."""
@@ -295,8 +342,7 @@ def run(name: str, options: dict, who: str = "operator") -> str:
                                     res.get("benchmark_curve") or []),
                "params": res.get("params") or {}, "elapsed_s": res.get("elapsed_s"),
                "fills": len(res.get("fills") or []),
-               "first_fills": (res.get("fills") or [])[:5],
-               "last_fills": (res.get("fills") or [])[-5:],
+               "trades": round_trips(res.get("fills") or []),
                "equity_curve": _downsample(res.get("equity_curve") or []),
                "benchmark_curve": _downsample(res.get("benchmark_curve") or []),
                "final_weights": res.get("final_weights") or {},

@@ -7,7 +7,7 @@ engine the research record was produced on, not a re-implementation.
 | here | there | what |
 | --- | --- | --- |
 | `bridge/strategy_interface.py` | `bridge/strategy_interface.py` | the isomorphic strategy contract (`TrustyStrategy`, `StrategyConfig`, `BarSnapshot`). `bridge/__init__.py` is EdgeStack's own two-liner: the container's also exports the QuantConnect shim, which is not borrowed |
-| `run_backtest.py` | `python_strategies/run_backtest.py` | bar-by-bar runner: T+1 open fills, 5+5 bps costs, metrics, SPY benchmark. **One addition**: the result carries `final_weights`, `final_signals`, `last_bar_date`, `universe` so the live manager can drive a deployment from the same code path |
+| `run_backtest.py` | `python_strategies/run_backtest.py` | bar-by-bar runner: T+1 open fills, 5+5 bps costs, metrics, SPY benchmark. **Two additions**: the result carries `final_weights`, `final_signals`, `last_bar_date`, `universe` so the live manager can drive a deployment from the same code path; and every fill carries `rule`, the strategy's own signal dict at decision time, so the trades table can say what triggered it |
 | `inspect_strategy.py` | `python_strategies/inspect_strategy.py` | name / universe / lookback / params of a strategy file |
 | `strategies/edgestack*.py`, `strategies/bench_spy_hold.py` | `python_strategies/strategies/` | **only** the submitted strategy's lineage and the buy-and-hold benchmark |
 | `data/*.csv` | `data/historical/*.csv` | Yahoo daily OHLCV (+ `adj_close`) for the eight symbols those two strategies reference; `SPYON` is the synthetic overnight index |
