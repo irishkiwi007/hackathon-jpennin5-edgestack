@@ -42,14 +42,20 @@ import tomllib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, ".."))
-LAB_REPORTS = os.environ.get("EDGESTACK_LAB_REPORTS",
-                             r"C:\Users\Lenovo\edgestack-deploy\lab-journal\reports")
+# Where the lab journal mirror lives: named outright, or beside LAB_MIRROR_DIR
+# (the container's deployer sets that one), else the laptop's old deploy dir.
+LAB_REPORTS = os.environ.get("EDGESTACK_LAB_REPORTS") or (
+    os.path.join(os.environ["LAB_MIRROR_DIR"], "reports") if os.environ.get("LAB_MIRROR_DIR")
+    else r"C:\Users\Lenovo\edgestack-deploy\lab-journal\reports")
 LAB_EVENTS = os.path.join(os.path.dirname(LAB_REPORTS), "events.jsonl")
 OUT = os.path.join(ROOT, "journal", "reproductions")
 SSH = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=20", os.environ.get("EDGESTACK_PVE", "pve")]
 CT = os.environ.get("EDGESTACK_LAB_CT", "203")
 ENGINE_URL = "http://127.0.0.1:3000/api/python-strategies/backtest"
 PROTOCOL_PATH = "/opt/agent-lab/protocol/protocol_v1.toml"
+# Since 2026-09-04 the live stack runs INSIDE the lab container: the protocol
+# file is right here and the engine is on this machine's loopback.
+IN_CONTAINER = os.name != "nt" and os.path.exists(PROTOCOL_PATH)
 
 _lock = threading.Lock()
 _running: set[str] = set()
@@ -58,10 +64,18 @@ _proto_cache: tuple[float, dict] | None = None
 
 # ----------------------------------------------------------------------------- the container
 def ct(cmd: str, timeout: int = 900) -> str:
-    """Run one shell command as root inside the lab container, exactly the way the
-    root audit tools are driven; returns stdout."""
-    r = subprocess.run(SSH + [f"pct exec {CT} -- bash -c {shlex.quote(cmd)}"],
-                       capture_output=True, text=True, timeout=timeout)
+    """Run one shell command inside the lab container and return stdout. From
+    the laptop that is ssh -> pct exec, as root, the way the root audit tools
+    are driven. From inside the container (the dashboard has lived there since
+    2026-09-04) the command simply runs here as this service's own user: the
+    protocol is world-readable, the engine answers on loopback, and the one
+    root-only step (the lab's own journal line) fails harmlessly because its
+    caller already treats it as non-fatal."""
+    if IN_CONTAINER:
+        r = subprocess.run(["bash", "-c", cmd], capture_output=True, text=True, timeout=timeout)
+    else:
+        r = subprocess.run(SSH + [f"pct exec {CT} -- bash -c {shlex.quote(cmd)}"],
+                           capture_output=True, text=True, timeout=timeout)
     if r.returncode != 0:
         raise RuntimeError(f"container command failed (rc={r.returncode}): {(r.stderr or r.stdout)[-300:]}")
     return r.stdout

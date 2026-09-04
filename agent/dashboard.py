@@ -80,7 +80,9 @@ def operator_token() -> str:
         pass
     os.makedirs(JOURNAL, exist_ok=True)
     t = secrets.token_hex(16)
-    with open(TOKEN_PATH, "w", encoding="utf-8") as fh:
+    # the operator's alone: no other uid on this machine may read it (2026-09-04)
+    fd = os.open(TOKEN_PATH, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
         fh.write(t + "\n")
     return t
 
@@ -364,7 +366,7 @@ function renderDossier(d){const v=d.verdict||{},p=d.prereg||{},r=d.reproduction;
  const head=`<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap"><b style="font-size:16px">Dossier ${esc(d.id)}</b>
   <span class=pill>${esc(p.filename||'?')}</span><span class=pill>objective ${esc(v.objective||p.objective||'?')}</span>
   <span class="pill ${String(v.verdict||'').startsWith('ADOPT')?'ok':''}">${esc(v.verdict||'no verdict')}</span>
-  <a class=small href="${esc(d.forge)}" target=_blank>open on the forge</a>
+  ${d.forge?'<a class=small href="'+esc(d.forge)+'" target=_blank>open on the forge</a>':''}
   <button class=b onclick="reproduce('${esc(d.id)}')" ${r&&r.status==='running'?'disabled':''}>${r&&r.status==='running'?'reproducing…':'Reproduce in the lab engine'}</button>
   <button class="b ghost" onclick="$('#bt-dossier').innerHTML='';DOSSIER_ID=null">close</button></div>
   <div class=small style="margin:6px 0 10px">Reproduce = baseline vs variant on the protocol's train and valid windows, at the protocol's costs, on the research container's own engine — the exact runs behind the verdict. Three columns: what was predicted, what the lab recorded, what the engine says now.</div>`;
@@ -810,7 +812,9 @@ class Handler(BaseHTTPRequestHandler):
                     return self._send(404, {"error": "no such dossier"})
                 return self._send(200, {"id": hid, "markdown": md, "prereg": h["prereg"],
                                         "verdict": h["verdict"], "reproduction": reproduce.latest(hid),
-                                        "forge": DOSSIER_URL + hid + ".md"})
+                                        # the forge is on the operator's tailnet; a
+                                        # visitor would only get a dead link
+                                        "forge": (DOSSIER_URL + hid + ".md") if self._local_operator() else None})
             if path == "/api/operator-key":
                 # Hands the key to a browser ON THIS MACHINE, so the stable
                 # landing page can fill it in by itself when the operator opens
