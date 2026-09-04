@@ -721,7 +721,7 @@ class Handler(BaseHTTPRequestHandler):
         """cloudflared proxies the public tunnel FROM loopback, so a visitor from
         anywhere arrives looking local; the CF-* headers it stamps on every
         request (and a client cannot strip) give it away. `tailscale serve`
-        ALSO proxies from loopback - for https://lenovo.tail054462.ts.net - but
+        ALSO proxies from loopback - for https://edgestack.tail054462.ts.net - but
         stamps X-Forwarded-For with the peer's tailnet address and the
         operator's Tailscale login instead; that is the operator, not a
         visitor (2026-09-02)."""

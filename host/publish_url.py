@@ -115,7 +115,7 @@ if(okey.value)frames();
    over HTTPS. Any tailnet device resolves that name and is trusted by the dashboard; every
    other device cannot resolve it and the attempt fails silently. */
 (async()=>{{if(okey.value)return;
-for(const u of ['http://127.0.0.1:8787/api/operator-key','https://lenovo.tail054462.ts.net/api/operator-key']){{
+for(const u of ['https://edgestack.tail054462.ts.net/api/operator-key','http://127.0.0.1:8787/api/operator-key']){{
 try{{const r=await fetch(u,{{mode:'cors',credentials:'omit'}});if(!r.ok)continue;const j=await r.json();
 if(j&&j.key){{okey.value=j.key;try{{localStorage.setItem('opkey',j.key)}}catch(e){{}}frames();return}}}}catch(e){{}}}}}})();
 </script></body></html>"""
