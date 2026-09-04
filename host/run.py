@@ -77,8 +77,8 @@ MODES = {
         # times in 12h on 2026-09-03 ("datagram manager", "accept stream"), and
         # every drop is a failed click for whoever is on the page. HTTP/2 is
         # the documented fallback and does not exhibit it.
-        "cmd": [os.path.join(HERE, "bin", "cloudflared.exe"), "tunnel",
-                "--url", "http://127.0.0.1:8787", "--no-autoupdate",
+        "cmd": [(os.path.join(HERE, "bin", "cloudflared.exe") if os.name == "nt" else "cloudflared"),
+                "tunnel", "--url", "http://127.0.0.1:8787", "--no-autoupdate",
                 "--protocol", "http2"],
         "port": None,
     },
@@ -174,10 +174,20 @@ def main() -> int:
     except (OSError, ValueError):
         other = 0
     if other and other != os.getpid():
-        import ctypes
-        h = ctypes.windll.kernel32.OpenProcess(0x1000, False, other)   # PROCESS_QUERY_LIMITED_INFORMATION
-        if h:
-            ctypes.windll.kernel32.CloseHandle(h)
+        alive = False
+        if os.name == "nt":
+            import ctypes
+            h = ctypes.windll.kernel32.OpenProcess(0x1000, False, other)   # PROCESS_QUERY_LIMITED_INFORMATION
+            if h:
+                ctypes.windll.kernel32.CloseHandle(h)
+                alive = True
+        else:
+            try:
+                os.kill(other, 0)
+                alive = True
+            except OSError:
+                alive = False
+        if alive:
             log(f"another '{mode}' supervisor (pid {other}) is alive; this one exits")
             return 0
     with open(lock_path, "w", encoding="utf-8") as fh:

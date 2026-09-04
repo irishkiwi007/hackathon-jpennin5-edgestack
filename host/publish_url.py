@@ -13,12 +13,14 @@ ctypes — no git, no subprocess, token never leaves memory).
 from __future__ import annotations
 
 import base64
-import ctypes
-import ctypes.wintypes as wt
 import json
 import os
 import sys
 import urllib.request
+
+if os.name == "nt":
+    import ctypes
+    import ctypes.wintypes as wt
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPO = "jpennin5/edgestack"
@@ -27,17 +29,32 @@ API = f"https://api.github.com/repos/{REPO}/contents/index.html"
 
 
 # ---------------------------------------------------------------- credential read
-class _CRED(ctypes.Structure):
-    _fields_ = [("Flags", wt.DWORD), ("Type", wt.DWORD), ("TargetName", wt.LPWSTR),
-                ("Comment", wt.LPWSTR), ("LastWritten", ctypes.c_byte * 8),
-                ("CredentialBlobSize", wt.DWORD),
-                ("CredentialBlob", ctypes.POINTER(ctypes.c_byte)),
-                ("Persist", wt.DWORD), ("AttributeCount", wt.DWORD),
-                ("Attributes", ctypes.c_void_p), ("TargetAlias", wt.LPWSTR),
-                ("UserName", wt.LPWSTR)]
+if os.name == "nt":
+    class _CRED(ctypes.Structure):
+        _fields_ = [("Flags", wt.DWORD), ("Type", wt.DWORD), ("TargetName", wt.LPWSTR),
+                    ("Comment", wt.LPWSTR), ("LastWritten", ctypes.c_byte * 8),
+                    ("CredentialBlobSize", wt.DWORD),
+                    ("CredentialBlob", ctypes.POINTER(ctypes.c_byte)),
+                    ("Persist", wt.DWORD), ("AttributeCount", wt.DWORD),
+                    ("Attributes", ctypes.c_void_p), ("TargetAlias", wt.LPWSTR),
+                    ("UserName", wt.LPWSTR)]
 
 
 def github_token() -> str | None:
+    """Windows: Credential Manager. Anywhere else (the container, 2026-09-04):
+    GITHUB_TOKEN in the environment, or a root-owned file named by
+    EDGESTACK_SECRETS (default /opt/edgestack-state/secrets/github_token)."""
+    if os.name != "nt":
+        tok = os.environ.get("GITHUB_TOKEN", "").strip()
+        if tok:
+            return tok
+        path = os.path.join(os.environ.get("EDGESTACK_SECRETS", "/opt/edgestack-state/secrets"),
+                            "github_token")
+        try:
+            with open(path, encoding="utf-8") as fh:
+                return fh.read().strip() or None
+        except OSError:
+            return None
     adv = ctypes.windll.advapi32
     p = ctypes.POINTER(_CRED)()
     for target in ("git:https://github.com", "git:https://x-access-token@github.com"):

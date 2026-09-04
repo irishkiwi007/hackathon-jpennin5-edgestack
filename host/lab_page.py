@@ -173,8 +173,9 @@ def sync_mirror():
     if not FORGE_HOST:
         raise SystemExit("FORGE_HOST is not set (host configuration, see forge.env.ps1)")
     url = f"{FORGE_HOST}/{MIRROR_REPO}.git"
-    helper = ('!f(){ echo username=jacob; echo "password=$(cat '
-              '/c/Users/Lenovo/edgestack-deploy/secrets/forge_jacob.token)"; }; f')
+    token_file = os.environ.get("FORGE_TOKEN_FILE",          # host configuration, never committed
+                                "/c/Users/Lenovo/edgestack-deploy/secrets/forge_jacob.token")
+    helper = ('!f(){ echo username=jacob; echo "password=$(cat ' + token_file + ')"; }; f')
     if not os.path.isdir(os.path.join(MIRROR, ".git")):
         subprocess.run(["git", "-c", "credential.helper=", "-c",
                         f"credential.{FORGE_HOST}.helper={helper}",
