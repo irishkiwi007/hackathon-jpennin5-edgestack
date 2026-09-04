@@ -673,6 +673,15 @@ STABLE_PAGE_ORIGIN = "https://jpennin5.github.io"      # the landing page's perm
 import ipaddress
 TAILNET = (ipaddress.ip_network("100.64.0.0/10"), ipaddress.ip_network("fd7a:115c:a1e0::/48"))
 
+# The names this dashboard answers to on the operator's tailnet, keyless: the
+# MagicDNS short name (http://edgestack:3000, like the trustyrusty container)
+# and the full one (https://edgestack.tail054462.ts.net). Listed by NAME, not by
+# the .ts.net suffix: any Tailscale user can mint a *.ts.net origin of their
+# own, and a page from such an origin, opened on a tailnet device, would
+# otherwise have been handed the operator key by /api/operator-key (2026-09-04).
+OWN_NAMES = tuple(n.strip().lower() for n in os.environ.get(
+    "EDGESTACK_NAMES", "edgestack,edgestack.tail054462.ts.net").split(",") if n.strip())
+
 
 def is_tailnet(host: str) -> bool:
     try:
@@ -687,9 +696,9 @@ def is_tailnet(host: str) -> bool:
 def origin_allowed(origin: str) -> bool:
     """Origins that may make cross-origin calls here: this machine, the tailnet,
     the tunnel the page is served through, and the stable landing page."""
-    host = origin.split("//")[-1].split(":")[0].strip("[]")
+    host = origin.split("//")[-1].split(":")[0].strip("[]").lower()
     return (host in ("127.0.0.1", "localhost") or origin == STABLE_PAGE_ORIGIN
-            or origin.endswith(".trycloudflare.com") or host.endswith(".ts.net")
+            or origin.endswith(".trycloudflare.com") or host in OWN_NAMES
             or is_tailnet(host))
 
 
@@ -748,8 +757,8 @@ class Handler(BaseHTTPRequestHandler):
         and an Origin from anywhere else is refused outright."""
         origin = self.headers.get("Origin")
         if origin:
-            ohost = origin.split("//")[-1].split(":")[0].strip("[]")
-            if ohost not in ("127.0.0.1", "localhost") and not ohost.endswith(".ts.net") \
+            ohost = origin.split("//")[-1].split(":")[0].strip("[]").lower()
+            if ohost not in ("127.0.0.1", "localhost") and ohost not in OWN_NAMES \
                     and not is_tailnet(ohost):
                 return False
         return str(self.headers.get("Content-Type", "")).startswith("application/json")
